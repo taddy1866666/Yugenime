@@ -13,7 +13,7 @@ const fetchSearchResults = async (query, genre, format) => {
   const searchQuery = `
     query ($search: String, $genre: String, $format: MediaFormat) {
       Page (perPage: 40) {
-        media (search: $search, genre: $genre, format: $format, sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+        media (search: $search, genre_in: [$genre], format: $format, sort: TRENDING_DESC, type: ANIME, isAdult: false) {
           id idMal title { english romaji } bannerImage description
           coverImage { extraLarge } averageScore episodes status genres format
           nextAiringEpisode { airingAt episode }

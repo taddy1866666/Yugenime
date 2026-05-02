@@ -10,7 +10,7 @@ const fetchGenreAnime = async (genre) => {
   const genreQuery = `
     query ($genre: String) {
       Page (perPage: 40) {
-        media (genre: $genre, sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+        media (genre_in: [$genre], sort: TRENDING_DESC, type: ANIME, isAdult: false) {
           id idMal title { english romaji } bannerImage description
           coverImage { extraLarge } averageScore episodes status genres format
           nextAiringEpisode { airingAt episode }
