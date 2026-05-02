@@ -435,33 +435,77 @@
     pointer-events: none;
   }
 
-  /* Search input fills the whole navbar area */
+  .navbar.search-active .search-container {
+    position: static;
+    flex: 1;
+  }
+
+  /* Premium Mobile Search Overlay */
   .search-container.active .search-input-wrapper {
     position: absolute;
     top: 50%;
-    left: 5px;
-    right: 5px;
+    left: 8px;
+    right: 8px;
     transform: translateY(-50%);
     width: auto;
-    height: 48px;
-    border-radius: 40px;
+    height: 44px;
+    border-radius: 22px;
     z-index: 1100;
-    background: #0c0c12;
-    border: 1px solid var(--accent);
+    background: rgba(15, 15, 25, 0.95);
+    backdrop-filter: blur(25px) saturate(200%);
+    border: 1px solid rgba(255, 51, 102, 0.4);
     padding: 0 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .search-container.active .search-input-wrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 
+      0 8px 32px rgba(255, 51, 102, 0.2),
+      0 0 0 1px rgba(255, 51, 102, 0.2);
+  }
+
+  .search-input-wrapper input {
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: -0.2px;
   }
 
   .search-suggestions-modal {
     position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    width: auto;
-    border-radius: 16px;
-    max-height: 70vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    top: calc(100% + 12px);
+    left: -4px;
+    right: -4px;
+    width: calc(100% + 8px);
+    border-radius: 24px;
+    max-height: 75vh;
+    background: rgba(10, 10, 15, 0.98);
+    backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    margin: 0;
+  }
+
+  .search-suggestion-item {
+    padding: 14px 18px;
+    gap: 16px;
+  }
+
+  .suggestion-image {
+    width: 48px;
+    height: 68px;
+    border-radius: 10px;
+  }
+
+  .suggestion-title {
+    font-size: 0.95rem;
+    margin-bottom: 6px;
   }
 
   .search-trigger {
