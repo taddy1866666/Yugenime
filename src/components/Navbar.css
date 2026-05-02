@@ -427,30 +427,41 @@
     display: none;
   }
 
-  /* When search is open: input fills the navbar */
+  /* When search is active on mobile, hide the logo and hamburger to clear space */
+  .navbar.search-active .navbar-logo,
+  .navbar.search-active .mobile-menu-toggle {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Search input fills the whole navbar area */
   .search-container.active .search-input-wrapper {
-    position: fixed;
-    top: 0.8rem;
-    left: 12px;
-    right: 12px;
+    position: absolute;
+    top: 50%;
+    left: 5px;
+    right: 5px;
+    transform: translateY(-50%);
     width: auto;
-    height: 52px;
-    border-radius: 20px;
+    height: 48px;
+    border-radius: 40px;
     z-index: 1100;
-    background: rgba(10, 10, 15, 0.98);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: #0c0c12;
+    border: 1px solid var(--accent);
     padding: 0 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   }
 
   .search-suggestions-modal {
-    position: fixed;
-    top: calc(0.8rem + 62px);
-    left: 12px;
-    right: 12px;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
     width: auto;
     border-radius: 16px;
-    max-height: 60vh;
+    max-height: 70vh;
     overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
   }
 
   .search-trigger {

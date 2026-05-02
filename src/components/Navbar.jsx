@@ -118,7 +118,7 @@ function Navbar() {
   };
 
   return (
-    <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+    <nav className={`navbar ${isScrolled ? 'scrolled' : ''} ${isSearchOpen ? 'search-active' : ''}`}>
       <div className="container nav-content">
         <div className="navbar-logo">
           <Link to="/">
