@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Instagram, Send, Heart } from 'lucide-react';
+import { Globe, Send, Heart } from 'lucide-react';
 import './Footer.css';
 
 const Footer = () => {
@@ -10,29 +10,33 @@ const Footer = () => {
     <footer className="footer">
       <div className="container">
         <div className="footer-content">
+
+          {/* Brand */}
           <div className="footer-brand">
             <h2>YUGENIME</h2>
             <p>
-              Experience anime like never before. High-quality streaming, 
-              real-time updates, and a community-driven platform for all anime fans.
+              Experience anime like never before. Real-time updates and a
+              community-driven platform for all anime fans.
             </p>
-            <div className="footer-socials" style={{ marginTop: '25px' }}>
-              <a href="#" className="social-icon"><Twitter size={18} /></a>
-              <a href="#" className="social-icon"><Instagram size={18} /></a>
-              <a href="#" className="social-icon"><Github size={18} /></a>
+            <div className="footer-socials">
+              <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer" className="social-icon" title="Developer Portfolio">
+                <Globe size={18} />
+              </a>
             </div>
           </div>
 
+          {/* Quick Links */}
           <div className="footer-links">
-            <h4>Quick Links</h4>
+            <h4>Navigate</h4>
             <ul>
               <li><Link to="/">Home</Link></li>
-              <li><Link to="/top-anime">Top Anime</Link></li>
+              <li><Link to="/top-anime">Top 100</Link></li>
               <li><Link to="/search">Search</Link></li>
               <li><Link to="/account">My Watchlist</Link></li>
             </ul>
           </div>
 
+          {/* Genres */}
           <div className="footer-links">
             <h4>Genres</h4>
             <ul>
@@ -43,22 +47,25 @@ const Footer = () => {
             </ul>
           </div>
 
+          {/* Newsletter */}
           <div className="footer-newsletter">
-            <h4>Newsletter</h4>
-            <p>Get the latest updates on new releases and features.</p>
+            <h4>Stay Updated</h4>
+            <p>Get notified about new releases and features.</p>
             <form className="newsletter-form" onSubmit={(e) => e.preventDefault()}>
-              <input type="email" placeholder="Email Address" />
-              <button type="submit" className="btn btn-primary" style={{ minHeight: '44px', padding: '0 15px' }}>
-                <Send size={18} />
+              <input type="email" placeholder="Your email address" />
+              <button type="submit" className="newsletter-btn">
+                <Send size={16} />
               </button>
             </form>
           </div>
+
         </div>
 
+        {/* Bottom Bar */}
         <div className="footer-bottom">
           <p>© {currentYear} Yugenime. All rights reserved.</p>
-          <p style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            Built with <Heart size={14} fill="var(--accent)" color="var(--accent)" /> by{' '}
+          <p className="footer-credit">
+            Built with <Heart size={13} fill="var(--accent)" color="var(--accent)" /> by{' '}
             <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer" className="dev-link">
               Taddy
             </a>
