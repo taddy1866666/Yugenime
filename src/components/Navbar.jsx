@@ -52,12 +52,8 @@ function Navbar() {
     enabled: searchTerm.length > 0,
   });
 
-  // Filter suggestions by first letter match
-  const filteredSuggestions = suggestions.filter(anime => {
-    const firstLetter = searchTerm.trim().charAt(0).toLowerCase();
-    const animeTitle = (anime.title.english || anime.title.romaji).toLowerCase();
-    return animeTitle.charAt(0) === firstLetter;
-  }).slice(0, 8);
+  // Show all API results (already sorted by popularity/relevance), limited to 8
+  const filteredSuggestions = suggestions.slice(0, 8);
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && e.target.value.trim() !== '') {
@@ -196,7 +192,7 @@ function Navbar() {
                     </div>
                   ) : (
                     <div className="search-no-results">
-                      <span>No anime starting with "{searchTerm.trim().charAt(0).toUpperCase()}"</span>
+                      <span>No results found for "{searchTerm}"</span>
                     </div>
                   )}
                 </motion.div>

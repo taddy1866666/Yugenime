@@ -7,9 +7,9 @@ import AnimeCard from '../components/AnimeCard';
 import { fetchAniList } from '../utils/api';
 
 const fetchTopAnime = async () => {
-  const topQuery = `
+  const makeQuery = (page) => `
     query {
-      Page (perPage: 50) {
+      Page (page: ${page}, perPage: 50) {
         media (sort: SCORE_DESC, type: ANIME, isAdult: false) {
           id idMal title { english romaji } bannerImage description
           coverImage { extraLarge } averageScore episodes status genres format
@@ -19,8 +19,15 @@ const fetchTopAnime = async () => {
       }
     }
   `;
-  const data = await fetchAniList(topQuery);
-  return data || [];
+  try {
+    const [page1, page2] = await Promise.all([
+      fetchAniList(makeQuery(1)),
+      fetchAniList(makeQuery(2)),
+    ]);
+    return [...(page1 || []), ...(page2 || [])];
+  } catch (e) {
+    return [];
+  }
 };
 
 function TopAnime({ handleOpenAnime }) {
