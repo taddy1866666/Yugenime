@@ -422,17 +422,9 @@
     font-size: 1.05rem;
   }
 
-  /* Hide watchlist button text on small screens, moved to mobile menu */
-  .watchlist-btn span {
+  /* Hide watchlist from navbar on mobile — it's already in the hamburger menu */
+  .navbar-auth {
     display: none;
-  }
-
-  .watchlist-btn {
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    border-radius: 50%;
-    justify-content: center;
   }
 
   /* When search is open: input fills the navbar */
