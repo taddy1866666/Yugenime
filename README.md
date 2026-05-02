@@ -1,16 +1,51 @@
-# React + Vite
+# 🌌 Yugenime - Premium Anime Experience
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Yugenime is a high-performance, modern anime platform built with React and Vite. It offers a premium cinematic experience for anime fans, featuring real-time data synchronization with AniList, mobile-responsive design, and an immersive user interface.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Cinematic UI**: Sleek, modern design with smooth animations and high-quality visuals.
+- **Real-time Data**: Integrated with AniList and Consumet APIs for up-to-date anime information, schedules, and streaming.
+- **Weekly Airing Schedule**: Interactive dashboard to track currently airing series.
+- **Progress Tracking**: Personal watched list and episode tracking (integrated with Firebase).
+- **Mobile Responsive**: Fully optimized for a seamless experience across all devices.
+- **Performance Optimized**: Built on Vite for lightning-fast HMR and build times.
 
-## React Compiler
+## 🚀 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React, Vanilla CSS (Glassmorphism), Vite
+- **Backend/Auth**: Firebase
+- **APIs**: AniList (GraphQL), Consumet
+- **Icons**: React Icons (Lucide, Io5)
 
-## Expanding the ESLint configuration
+## 🛠️ Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/taddy1866666/Yugenime.git
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file and add your Firebase configuration:
+   ```env
+   VITE_FIREBASE_API_KEY=your_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+Built with ❤️ for the Anime Community.
