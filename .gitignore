@@ -31,3 +31,7 @@ dist-ssr
 # AI/Tool specific directories
 .claude/
 .gemini/
+
+# Temporary and design files
+lint_output.txt
+design-system/
