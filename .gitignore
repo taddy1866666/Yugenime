@@ -35,3 +35,5 @@ dist-ssr
 # Temporary and design files
 lint_output.txt
 design-system/
+SYSTEM_DOCUMENTATION.txt
+UI-UX-IMPROVEMENTS.md
