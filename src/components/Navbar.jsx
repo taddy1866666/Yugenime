@@ -1,0 +1,246 @@
+import React, { useState } from 'react';
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, X, ListVideo } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAniList } from '../utils/api';
+import './Navbar.css';
+
+function Navbar() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Scrolled state for background opacity
+      if (currentScrollY > 50) setIsScrolled(true);
+      else setIsScrolled(false);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const fetchSearchSuggestions = async (query) => {
+    if (!query || query.trim().length === 0) return [];
+
+    const searchQuery = `
+      query ($search: String) {
+        Page (perPage: 8) {
+          media (search: $search, sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+            id idMal title { english romaji } coverImage { extraLarge }
+            averageScore episodes status genres format
+            nextAiringEpisode { airingAt episode }
+          }
+        }
+      }
+    `;
+    const data = await fetchAniList(searchQuery, { search: query });
+    return data || [];
+  };
+
+  const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery({
+    queryKey: ['anime', 'search-suggestions', searchTerm],
+    queryFn: () => fetchSearchSuggestions(searchTerm),
+    enabled: searchTerm.length > 0,
+  });
+
+  // Filter suggestions by first letter match
+  const filteredSuggestions = suggestions.filter(anime => {
+    const firstLetter = searchTerm.trim().charAt(0).toLowerCase();
+    const animeTitle = (anime.title.english || anime.title.romaji).toLowerCase();
+    return animeTitle.charAt(0) === firstLetter;
+  }).slice(0, 8);
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim() !== '') {
+      navigate('/search', { state: { query: e.target.value } });
+      setIsSearchOpen(false);
+      setSearchTerm('');
+    } else if (e.key === 'Enter' && e.target.value.trim() === '') {
+      navigate('/search');
+      setIsSearchOpen(false);
+      setSearchTerm('');
+    }
+  };
+
+  const handleSearchClick = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleSuggestionClick = (anime) => {
+    navigate('/search', { state: { query: anime.title.english || anime.title.romaji } });
+    setIsSearchOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleCloseSearch = () => {
+    setIsSearchOpen(false);
+    setSearchTerm('');
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+    if (isSearchOpen) setIsSearchOpen(false);
+  };
+
+  return (
+    <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+      <div className="container nav-content">
+        <div className="navbar-logo">
+          <Link to="/">
+            <h1>Yugen<span>ime</span></h1>
+          </Link>
+        </div>
+
+        <ul className="navbar-links">
+          <li>
+            <Link to="/" className={location.pathname === '/' ? "active" : ""}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link to="/top-anime" className={location.pathname === '/top-anime' ? "active" : ""}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+              </svg>
+              Top 100
+            </Link>
+          </li>
+        </ul>
+
+        <div className="navbar-actions">
+          <div className={`search-container ${isSearchOpen ? 'active' : ''}`}>
+            {isSearchOpen ? (
+              <motion.div 
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: '250px', opacity: 1 }}
+                className="search-input-wrapper"
+              >
+                <Search size={18} className="search-icon-inner" />
+                <input 
+                  type="text" 
+                  placeholder="Search or Discover" 
+                  autoFocus 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={handleSearchSubmit}
+                />
+                <X size={18} className="close-search" onClick={handleCloseSearch} />
+              </motion.div>
+            ) : (
+              <button className="search-trigger" onClick={handleSearchClick} title="Search & Discover">
+                <Search size={20} />
+              </button>
+            )}
+
+            <AnimatePresence>
+              {isSearchOpen && searchTerm.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="search-suggestions-modal"
+                >
+                  {isLoadingSuggestions ? (
+                    <div className="search-loading">
+                      <div className="search-spinner"></div>
+                      <span>Finding anime...</span>
+                    </div>
+                  ) : filteredSuggestions.length > 0 ? (
+                    <div className="search-suggestions-list">
+                      <div className="search-suggestions-header">
+                        <span className="search-results-count">Found {filteredSuggestions.length} anime</span>
+                      </div>
+                      {filteredSuggestions.map((anime, index) => (
+                        <motion.div
+                          key={anime.id}
+                          className="search-suggestion-item"
+                          onClick={() => handleSuggestionClick(anime)}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.12)', x: 4 }}
+                        >
+                          <img 
+                            src={anime.coverImage.extraLarge} 
+                            alt={anime.title.english || anime.title.romaji}
+                            className="suggestion-image"
+                          />
+                          <div className="suggestion-info">
+                            <h4 className="suggestion-title">
+                              {anime.title.english || anime.title.romaji}
+                            </h4>
+                            <div className="suggestion-meta">
+                              <span className="suggestion-rating">
+                                {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'} ★
+                              </span>
+                              <span className="suggestion-format">
+                                {anime.format === 'MOVIE' ? 'Movie' : anime.episodes ? `${anime.episodes} ep` : 'Ongoing'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="suggestion-arrow">→</div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="search-no-results">
+                      <span>No anime starting with "{searchTerm.trim().charAt(0).toUpperCase()}"</span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="navbar-auth">
+            <Link to="/account" className="watchlist-btn">
+              <ListVideo size={18} />
+              <span>Watchlist</span>
+            </Link>
+          </div>
+
+          <button className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`} onClick={toggleMobileMenu}>
+            {isMobileMenuOpen ? <X size={24} /> : (
+              <div className="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mobile-menu"
+          >
+            <div className="mobile-menu-links">
+              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className={location.pathname === '/' ? "active" : ""}>Home</Link>
+              <Link to="/top-anime" onClick={() => setIsMobileMenuOpen(false)} className={location.pathname === '/top-anime' ? "active" : ""}>Top 100</Link>
+              <Link to="/account" onClick={() => setIsMobileMenuOpen(false)} className={location.pathname === '/account' ? "active" : ""}>Watchlist</Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+}
+
+export default Navbar;

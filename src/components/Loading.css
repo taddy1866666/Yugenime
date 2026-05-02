@@ -1,0 +1,394 @@
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-fullscreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+}
+
+.loading-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.loading-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+  text-align: center;
+}
+
+/* Spinner Styles */
+.loading-spinner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner.small {
+  width: 24px;
+  height: 24px;
+}
+
+.loading-spinner.medium {
+  width: 40px;
+  height: 40px;
+}
+
+.loading-spinner.large {
+  width: 60px;
+  height: 60px;
+}
+
+.spinner-ring {
+  position: absolute;
+  border: 3px solid rgba(var(--accent-rgb), 0.2);
+  border-top: 3px solid var(--accent);
+  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+}
+
+.spinner-ring-2 {
+  position: absolute;
+  border: 2px solid rgba(255, 107, 107, 0.2);
+  border-top: 2px solid #ff6b6b;
+  border-radius: 50%;
+  width: 70%;
+  height: 70%;
+}
+
+/* Dots Styles */
+.loading-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.loading-dots.small .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.loading-dots.medium .dot {
+  width: 10px;
+  height: 10px;
+}
+
+.loading-dots.large .dot {
+  width: 14px;
+  height: 14px;
+}
+
+.dot {
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
+}
+
+/* Pulse Styles */
+.loading-pulse {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-pulse.small {
+  width: 30px;
+  height: 30px;
+}
+
+.loading-pulse.medium {
+  width: 50px;
+  height: 50px;
+}
+
+.loading-pulse.large {
+  width: 70px;
+  height: 70px;
+}
+
+.pulse-circle {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(var(--accent-rgb), 0.3) 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.4);
+}
+
+/* Wave Styles */
+.loading-wave {
+  display: flex;
+  gap: 4px;
+  align-items: end;
+}
+
+.loading-wave.small .wave-bar {
+  width: 3px;
+  height: 20px;
+}
+
+.loading-wave.medium .wave-bar {
+  width: 4px;
+  height: 30px;
+}
+
+.loading-wave.large .wave-bar {
+  width: 6px;
+  height: 40px;
+}
+
+.wave-bar {
+  background: linear-gradient(to top, var(--accent), #ff6b6b);
+  border-radius: 2px;
+  transform-origin: bottom;
+}
+
+/* Color Variants */
+.loading-spinner.secondary .spinner-ring {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-top-color: white;
+}
+
+.loading-spinner.secondary .spinner-ring-2 {
+  border-color: rgba(156, 163, 175, 0.2);
+  border-top-color: #9ca3af;
+}
+
+.loading-dots.secondary .dot {
+  background: white;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.loading-pulse.secondary .pulse-circle {
+  background: radial-gradient(circle, white 0%, rgba(255, 255, 255, 0.3) 70%);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.loading-wave.secondary .wave-bar {
+  background: linear-gradient(to top, white, #e5e7eb);
+}
+
+/* Premium Glow Effect */
+.loading-spinner.primary,
+.loading-dots.primary,
+.loading-pulse.primary,
+.loading-wave.primary {
+  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.3));
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .loading-spinner.large {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .loading-dots.large .dot {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .loading-wave.large .wave-bar {
+    width: 5px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .loading-fullscreen .loading-text {
+    font-size: 0.8rem;
+  }
+  
+  .loading-spinner.large {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .loading-spinner.medium {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .loading-dots.large .dot {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .loading-dots.medium .dot {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .loading-wave.large .wave-bar {
+    width: 4px;
+    height: 32px;
+  }
+  
+  .loading-pulse.large {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (max-width: 640px) {
+  .loading-spinner {
+    width: auto;
+  }
+  
+  .loading-spinner.large {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .loading-spinner.medium {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .loading-spinner.small {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .loading-dots {
+    gap: 6px;
+  }
+  
+  .loading-dots.large .dot {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .loading-dots.medium .dot {
+    width: 7px;
+    height: 7px;
+  }
+  
+  .loading-wave {
+    gap: 3px;
+  }
+  
+  .loading-wave.large .wave-bar {
+    width: 3px;
+    height: 28px;
+  }
+  
+  .loading-wave.medium .wave-bar {
+    width: 3px;
+    height: 24px;
+  }
+  
+  .loading-pulse.large {
+    width: 52px;
+    height: 52px;
+  }
+  
+  .loading-pulse.medium {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .loading-content {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loading-spinner {
+    width: auto;
+  }
+  
+  .loading-spinner.large {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .loading-spinner.medium {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .loading-spinner.small {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .spinner-ring {
+    border: 2px solid rgba(var(--accent-rgb), 0.2);
+    border-top-width: 2px;
+  }
+  
+  .spinner-ring-2 {
+    border-width: 1.5px;
+  }
+  
+  .loading-dots {
+    gap: 4px;
+  }
+  
+  .loading-dots.large .dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .loading-dots.medium .dot {
+    width: 5px;
+    height: 5px;
+  }
+  
+  .loading-dots.small .dot {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .loading-wave {
+    gap: 2px;
+  }
+  
+  .loading-wave.large .wave-bar {
+    width: 3px;
+    height: 24px;
+  }
+  
+  .loading-wave.medium .wave-bar {
+    width: 2px;
+    height: 20px;
+  }
+  
+  .loading-pulse.large {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .loading-pulse.medium {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .loading-pulse.small {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .loading-content {
+    gap: 10px;
+  }
+  
+  .loading-text {
+    font-size: 0.75rem;
+  }
+}

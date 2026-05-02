@@ -1,0 +1,244 @@
+.anime-card {
+  cursor: pointer;
+  width: 100%;
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.card-image-wrapper img.card-image {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  transition: transform 0.8s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.anime-card:hover .card-image {
+  transform: scale(1.1);
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  /* Dark Gradient Overlay (No Red) */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.4));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+  padding: 20px;
+  text-align: center;
+}
+
+.anime-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  transform: translateY(20px);
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.anime-card:hover .overlay-content {
+  transform: translateY(0);
+}
+
+.play-circle {
+  width: 44px;
+  height: 44px;
+  background: white;
+  color: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card-genres {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.genre-pill-mini {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-synopsis {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 5;
+}
+
+.card-countdown {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--accent);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 4px 10px var(--accent-glow);
+  z-index: 5;
+  text-transform: uppercase;
+}
+
+.card-info {
+  margin-top: 14px;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffb800;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .card-title {
+    font-size: 0.9rem;
+    -webkit-line-clamp: 2;
+  }
+  
+  .card-badge,
+  .card-countdown {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+  }
+  
+  .card-overlay {
+    padding: 16px;
+  }
+  
+  .play-circle {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .card-synopsis {
+    font-size: 0.7rem;
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-title {
+    font-size: 0.85rem;
+  }
+  
+  .card-meta {
+    gap: 8px;
+  }
+  
+  .card-rating {
+    font-size: 0.75rem;
+  }
+  
+  .card-badge,
+  .card-countdown {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    top: 8px;
+  }
+  
+  .card-badge {
+    right: 8px;
+  }
+  
+  .card-countdown {
+    left: 8px;
+  }
+  
+  .card-overlay {
+    padding: 12px;
+  }
+  
+  .play-circle {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .genre-pill-mini {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+  
+  .card-synopsis {
+    font-size: 0.65rem;
+  }
+  
+  .card-info {
+    margin-top: 10px;
+  }
+}
