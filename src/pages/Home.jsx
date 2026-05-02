@@ -183,20 +183,7 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
     >
       <Hero
         trendingAnime={heroAnime}
-        onPlay={(anime) => {
-          const formatted = {
-            id: anime.id,
-            idMal: anime.idMal,
-            title: anime.title.english || anime.title.romaji,
-            description: anime.description,
-            synopsis: anime.description?.replace(/<[^>]*>?/gm, ''),
-            coverImage: { extraLarge: anime.coverImage.extraLarge },
-            averageScore: anime.averageScore,
-            episodes: anime.nextAiringEpisode ? anime.nextAiringEpisode.episode - 1 : anime.episodes,
-            genres: anime.genres
-          };
-          handleOpenAnime(formatted);
-        }}
+        onPlay={(anime) => handleOpenAnime(anime)}
       />
 
       <div className="container">

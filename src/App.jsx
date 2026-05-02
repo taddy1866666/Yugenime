@@ -43,8 +43,6 @@ function App() {
     localStorage.setItem('yugenime_progress', JSON.stringify(userProgress));
   }, [userProgress]);
 
-  const location = useLocation();
-
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 500) setShowScrollTop(true);
@@ -59,7 +57,15 @@ function App() {
   };
 
   const handleOpenAnime = async (anime) => {
-    setSelectedAnime(anime);
+    // Standardize anime data for consistent rendering
+    const standardizedAnime = {
+      ...anime,
+      title: typeof anime.title === 'string' 
+        ? { english: anime.title, romaji: anime.title } 
+        : anime.title
+    };
+
+    setSelectedAnime(standardizedAnime);
     setEpisodes([]);
     setIsLoadingEpisodes(true);
 
@@ -139,7 +145,7 @@ function App() {
         title: title,
         episode: episodeNumber,
         image: selectedAnime.coverImage?.extraLarge,
-        synopsis: selectedAnime.synopsis,
+        synopsis: selectedAnime.description || selectedAnime.synopsis,
         genres: selectedAnime.genres,
         updatedAt: Date.now(),
         status: 'watching'
@@ -209,7 +215,7 @@ function App() {
       )}
 
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+        <Routes>
           <Route path="/" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnime} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
           <Route path="/genre/:genreName" element={<Genre handleOpenAnime={handleOpenAnime} />} />
           <Route path="/account" element={<AccountView progress={userProgress} setProgress={setUserProgress} onBack={() => navigate(-1)} onAnimeClick={handleOpenAnimeFromProgress} />} />
@@ -255,7 +261,7 @@ function App() {
                     )}
                   </div>
                   <h2 style={{ marginTop: '25px', fontSize: '2.2rem', fontWeight: 800 }}>
-                    {selectedAnime.title.english || selectedAnime.title.romaji}
+                    {selectedAnime.title?.english || selectedAnime.title?.romaji || 'Unknown Title'}
                   </h2>
                   <div style={{ display: 'flex', gap: '8px', margin: '20px 0' }}>
                     {selectedAnime.genres?.map(g => (

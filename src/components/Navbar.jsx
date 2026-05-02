@@ -18,7 +18,7 @@ function Navbar() {
 
   // Debounce search: wait 400ms after user stops typing, min 2 chars
   useEffect(() => {
-    if (searchTerm.trim().length < 2) {
+    if (searchTerm.trim().length < 1) {
       setDebouncedTerm('');
       return;
     }
@@ -60,14 +60,14 @@ function Navbar() {
   const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery({
     queryKey: ['anime', 'search-suggestions', debouncedTerm],
     queryFn: () => fetchSearchSuggestions(debouncedTerm),
-    enabled: debouncedTerm.length >= 2,
+    enabled: debouncedTerm.length >= 1,
     staleTime: 1000 * 60 * 5, // Cache suggestions for 5 mins
   });
 
   // Show all API results (already sorted by popularity/relevance), limited to 8
   const filteredSuggestions = suggestions.slice(0, 8);
   // Show dropdown only when debounced term is ready
-  const showSuggestions = isSearchOpen && debouncedTerm.length >= 2;
+  const showSuggestions = isSearchOpen && debouncedTerm.length >= 1;
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && e.target.value.trim() !== '') {
