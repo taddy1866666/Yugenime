@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search as SearchIcon, Filter } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Search as SearchIcon } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AnimeCard from '../components/AnimeCard';
 import { fetchAniList } from '../utils/api';
@@ -36,22 +36,49 @@ const GENRES = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "
 
 function Search({ handleOpenAnime }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Initialize search term from location state if coming from navbar suggestion
+  // Read initial values from URL params
+  const [inputValue, setInputValue] = useState(searchParams.get('q') || '');
+  const [selectedGenre, setSelectedGenre] = useState(searchParams.get('genre') || '');
+  const [selectedFormat, setSelectedFormat] = useState(searchParams.get('format') || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(searchParams.get('q') || '');
+
+  // Sync inputValue when URL param changes (e.g. from navbar suggestion click)
   useEffect(() => {
-    if (location.state?.query) {
-      setSearchTerm(location.state.query);
-    }
-  }, [location.state?.query]);
+    const q = searchParams.get('q') || '';
+    setInputValue(q);
+    setDebouncedQuery(q);
+  }, [searchParams.get('q')]);
+
+  // Debounce the typed query — only updates after 400ms of inactivity
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(inputValue.trim());
+      // Keep URL in sync
+      const params = {};
+      if (inputValue.trim()) params.q = inputValue.trim();
+      if (selectedGenre) params.genre = selectedGenre;
+      if (selectedFormat) params.format = selectedFormat;
+      setSearchParams(params, { replace: true });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
+
+  // Sync genre/format changes to URL immediately
+  useEffect(() => {
+    const params = {};
+    if (debouncedQuery) params.q = debouncedQuery;
+    if (selectedGenre) params.genre = selectedGenre;
+    if (selectedFormat) params.format = selectedFormat;
+    setSearchParams(params, { replace: true });
+  }, [selectedGenre, selectedFormat]);
 
   const { data: searchResults = [], isLoading } = useQuery({
-    queryKey: ['anime', 'search', searchTerm, selectedGenre, selectedFormat],
-    queryFn: () => fetchSearchResults(searchTerm, selectedGenre, selectedFormat),
-    enabled: !!searchTerm || !!selectedGenre || !!selectedFormat,
+    queryKey: ['anime', 'search', debouncedQuery, selectedGenre, selectedFormat],
+    queryFn: () => fetchSearchResults(debouncedQuery, selectedGenre, selectedFormat),
+    enabled: !!debouncedQuery || !!selectedGenre || !!selectedFormat,
+    staleTime: 1000 * 60 * 5,
   });
 
   const getBadgeText = (anime) => {
@@ -61,6 +88,8 @@ function Search({ handleOpenAnime }) {
     if (anime.episodes) return `EP ${anime.episodes}`;
     return 'Ongoing';
   };
+
+  const hasActiveSearch = !!debouncedQuery || !!selectedGenre || !!selectedFormat;
 
   return (
     <motion.div
@@ -78,17 +107,17 @@ function Search({ handleOpenAnime }) {
       <div className="search-filters" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '40px' }}>
         <div className="search-input-box" style={{ flex: '1 1 300px', position: 'relative' }}>
           <SearchIcon size={20} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search anime titles..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '100%', padding: '15px 15px 15px 45px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '1rem' }}
+          <input
+            type="text"
+            placeholder="Search anime titles..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            style={{ width: '100%', padding: '15px 15px 15px 45px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '1rem', outline: 'none' }}
           />
         </div>
 
-        <select 
-          value={selectedGenre} 
+        <select
+          value={selectedGenre}
           onChange={(e) => setSelectedGenre(e.target.value)}
           style={{ padding: '0 20px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '1rem' }}
         >
@@ -96,8 +125,8 @@ function Search({ handleOpenAnime }) {
           {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
 
-        <select 
-          value={selectedFormat} 
+        <select
+          value={selectedFormat}
           onChange={(e) => setSelectedFormat(e.target.value)}
           style={{ padding: '0 20px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '1rem' }}
         >
@@ -112,7 +141,7 @@ function Search({ handleOpenAnime }) {
         <div className="loader-container" style={{ height: '40vh' }}>
           <div className="loader-ring"></div>
         </div>
-      ) : searchResults.length > 0 ? (
+      ) : hasActiveSearch && searchResults.length > 0 ? (
         <div className="anime-grid">
           {searchResults.map((anime) => (
             <AnimeCard
@@ -125,17 +154,24 @@ function Search({ handleOpenAnime }) {
               genres={anime.genres}
               onGenreClick={(g) => {
                 setSelectedGenre(g);
+                setInputValue('');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onClick={() => handleOpenAnime(anime)}
             />
           ))}
         </div>
-      ) : (
+      ) : hasActiveSearch ? (
         <div className="empty-state" style={{ textAlign: 'center', marginTop: '60px', opacity: 0.6 }}>
           <SearchIcon size={64} style={{ marginBottom: '20px' }} />
           <h3>No results found</h3>
           <p>Try adjusting your search or filters.</p>
+        </div>
+      ) : (
+        <div className="empty-state" style={{ textAlign: 'center', marginTop: '60px', opacity: 0.5 }}>
+          <SearchIcon size={64} style={{ marginBottom: '20px' }} />
+          <h3>Search for anything</h3>
+          <p>Type an anime title or pick a genre to get started.</p>
         </div>
       )}
     </motion.div>

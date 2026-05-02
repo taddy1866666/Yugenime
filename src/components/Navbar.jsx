@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, ListVideo } from 'lucide-react';
@@ -10,10 +10,21 @@ import './Navbar.css';
 function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedTerm, setDebouncedTerm] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Debounce search: wait 400ms after user stops typing, min 2 chars
+  useEffect(() => {
+    if (searchTerm.trim().length < 2) {
+      setDebouncedTerm('');
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -47,23 +58,28 @@ function Navbar() {
   };
 
   const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery({
-    queryKey: ['anime', 'search-suggestions', searchTerm],
-    queryFn: () => fetchSearchSuggestions(searchTerm),
-    enabled: searchTerm.length > 0,
+    queryKey: ['anime', 'search-suggestions', debouncedTerm],
+    queryFn: () => fetchSearchSuggestions(debouncedTerm),
+    enabled: debouncedTerm.length >= 2,
+    staleTime: 1000 * 60 * 5, // Cache suggestions for 5 mins
   });
 
   // Show all API results (already sorted by popularity/relevance), limited to 8
   const filteredSuggestions = suggestions.slice(0, 8);
+  // Show dropdown only when debounced term is ready
+  const showSuggestions = isSearchOpen && debouncedTerm.length >= 2;
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && e.target.value.trim() !== '') {
-      navigate('/search', { state: { query: e.target.value } });
+      navigate(`/search?q=${encodeURIComponent(e.target.value.trim())}`);
       setIsSearchOpen(false);
       setSearchTerm('');
-    } else if (e.key === 'Enter' && e.target.value.trim() === '') {
+      setDebouncedTerm('');
+    } else if (e.key === 'Enter') {
       navigate('/search');
       setIsSearchOpen(false);
       setSearchTerm('');
+      setDebouncedTerm('');
     }
   };
 
@@ -72,14 +88,17 @@ function Navbar() {
   };
 
   const handleSuggestionClick = (anime) => {
-    navigate('/search', { state: { query: anime.title.english || anime.title.romaji } });
+    const title = anime.title.english || anime.title.romaji;
+    navigate(`/search?q=${encodeURIComponent(title)}`);
     setIsSearchOpen(false);
     setSearchTerm('');
+    setDebouncedTerm('');
   };
 
   const handleCloseSearch = () => {
     setIsSearchOpen(false);
     setSearchTerm('');
+    setDebouncedTerm('');
   };
 
   const toggleMobileMenu = () => {
@@ -141,7 +160,7 @@ function Navbar() {
             )}
 
             <AnimatePresence>
-              {isSearchOpen && searchTerm.length > 0 && (
+              {showSuggestions && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
