@@ -43,6 +43,8 @@ function App() {
     localStorage.setItem('yugenime_progress', JSON.stringify(userProgress));
   }, [userProgress]);
 
+  const location = useLocation();
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 500) setShowScrollTop(true);
@@ -207,7 +209,7 @@ function App() {
       )}
 
       <AnimatePresence mode="wait">
-        <Routes>
+        <Routes location={location} key={location.pathname}>
           <Route path="/" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnime} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
           <Route path="/genre/:genreName" element={<Genre handleOpenAnime={handleOpenAnime} />} />
           <Route path="/account" element={<AccountView progress={userProgress} setProgress={setUserProgress} onBack={() => navigate(-1)} onAnimeClick={handleOpenAnimeFromProgress} />} />

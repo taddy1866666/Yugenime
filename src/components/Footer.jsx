@@ -57,7 +57,7 @@ const Footer = () => {
 
         <div className="footer-bottom">
           <p>© {currentYear} Yugenime. All rights reserved.</p>
-          <p style={{ display: 'flex', alignJoin: 'center', gap: '5px' }}>
+          <p style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             Built with <Heart size={14} fill="var(--accent)" color="var(--accent)" /> by{' '}
             <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer" className="dev-link">
               Taddy
