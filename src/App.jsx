@@ -13,6 +13,7 @@ import Home from './pages/Home';
 import Genre from './pages/Genre';
 import Search from './pages/Search';
 import TopAnime from './pages/TopAnime';
+import Footer from './components/Footer';
 
 import './App.css';
 
@@ -214,6 +215,8 @@ function App() {
           <Route path="/top-anime" element={<TopAnime handleOpenAnime={handleOpenAnime} />} />
         </Routes>
       </AnimatePresence>
+
+      <Footer />
 
       <AnimatePresence>
         {selectedAnime && (
