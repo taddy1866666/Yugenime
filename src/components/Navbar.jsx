@@ -64,8 +64,19 @@ function Navbar() {
     staleTime: 1000 * 60 * 5, // Cache suggestions for 5 mins
   });
 
-  // Show all API results (already sorted by popularity/relevance), limited to 8
-  const filteredSuggestions = suggestions.slice(0, 8);
+  // Sort results: prioritize those starting with the query, then keep API popularity sort
+  const filteredSuggestions = [...suggestions].sort((a, b) => {
+    const aTitle = (a.title.english || a.title.romaji || '').toLowerCase();
+    const bTitle = (b.title.english || b.title.romaji || '').toLowerCase();
+    const query = debouncedTerm.toLowerCase();
+
+    const aStarts = aTitle.startsWith(query);
+    const bStarts = bTitle.startsWith(query);
+
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return 0;
+  }).slice(0, 8);
   // Show dropdown only when debounced term is ready
   const showSuggestions = isSearchOpen && debouncedTerm.length >= 1;
 

@@ -77,6 +77,20 @@ function Search({ handleOpenAnime }) {
     staleTime: 1000 * 60 * 5,
   });
 
+  const sortedResults = [...searchResults].sort((a, b) => {
+    if (!debouncedQuery) return 0;
+    const aTitle = (a.title.english || a.title.romaji || '').toLowerCase();
+    const bTitle = (b.title.english || b.title.romaji || '').toLowerCase();
+    const query = debouncedQuery.toLowerCase();
+
+    const aStarts = aTitle.startsWith(query);
+    const bStarts = bTitle.startsWith(query);
+
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return 0;
+  });
+
   const getBadgeText = (anime) => {
     if (anime.format === 'MOVIE') return 'Movie';
     if (anime.nextAiringEpisode) return `EP ${anime.nextAiringEpisode.episode - 1}`;
@@ -149,9 +163,9 @@ function Search({ handleOpenAnime }) {
         <div className="loader-container" style={{ height: '40vh' }}>
           <div className="loader-ring"></div>
         </div>
-      ) : hasSearch && searchResults.length > 0 ? (
+      ) : hasSearch && sortedResults.length > 0 ? (
         <div className="anime-grid">
-          {searchResults.map((anime) => (
+          {sortedResults.map((anime) => (
             <AnimeCard
               key={anime.id}
               title={anime.title.english || anime.title.romaji}
