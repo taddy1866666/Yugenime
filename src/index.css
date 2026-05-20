@@ -2,17 +2,17 @@
 
 :root {
   /* Core Colors - Style A (Minimalist Dark) */
-  --bg: #050505;
-  --surface: #0f0f12;
-  --surface-hover: #1a1a1e;
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface-hover: #121212;
   
-  --accent: #ff3366;
-  --accent-glow: rgba(255, 51, 102, 0.4);
-  --accent-soft: rgba(255, 51, 102, 0.1);
+  --accent: #ff0000;
+  --accent-glow: rgba(255, 0, 0, 0.4);
+  --accent-soft: rgba(255, 0, 0, 0.1);
   
   --text-main: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --text-dim: rgba(255, 255, 255, 0.35);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-dim: rgba(255, 255, 255, 0.4);
   
   /* Glass Effects */
   --glass: rgba(15, 15, 18, 0.6);
@@ -21,7 +21,7 @@
   
   --card-bg: rgba(255, 255, 255, 0.04);
   --border: rgba(255, 255, 255, 0.08);
-  --accent-rgb: 255, 51, 102;
+  --accent-rgb: 255, 0, 0;
   
   /* Layout */
   --nav-height: 72px;
@@ -261,7 +261,7 @@ a { text-decoration: none; color: inherit; }
 
 .episode-num-btn {
   background: var(--accent-soft);
-  border: 1px solid rgba(255, 51, 102, 0.3);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
   color: var(--accent);
   border-radius: 50px;
   padding: 8px 16px;

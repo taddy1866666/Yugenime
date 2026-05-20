@@ -9,6 +9,7 @@ import AiringSchedule from '../components/AiringSchedule';
 import { fetchAniList } from '../utils/api';
 
 const fetchTrending = async () => {
+  console.log('[Home] Fetching trending anime...');
   const date = new Date();
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -31,18 +32,25 @@ const fetchTrending = async () => {
       }
     }
   `;
-  const trendingData = await fetchAniList(trendingQuery, { season, year });
-  return trendingData;
+  try {
+    const trendingData = await fetchAniList(trendingQuery, { season, year });
+    console.log('[Home] Trending loaded:', trendingData?.length || 0, 'results');
+    return trendingData;
+  } catch (e) {
+    console.error('[Home] Trending fetch failed:', e);
+    return [];
+  }
 };
 
 const fetchLatest = async () => {
+  console.log('[Home] Fetching latest airing anime...');
   const now = Math.floor(Date.now() / 1000);
   const oneWeekAgo = now - (7 * 24 * 60 * 60);
   const buffer = now + 3600;
 
   const latestQuery = `
     query ($start: Int, $end: Int) {
-      Page (perPage: 50) {
+      Page (perPage: 30) {
         airingSchedules (airingAt_greater: $start, airingAt_lesser: $end, sort: TIME_DESC) {
           episode
           airingAt
@@ -56,20 +64,28 @@ const fetchLatest = async () => {
       }
     }
   `;
-  const airingData = await fetchAniList(latestQuery, { start: oneWeekAgo, end: buffer });
+  try {
+    const airingData = await fetchAniList(latestQuery, { start: oneWeekAgo, end: buffer });
 
-  const uniqueMap = new Map();
-  airingData.forEach(item => {
-    if (!uniqueMap.has(item.media.id)) {
-      uniqueMap.set(item.media.id, {
-        ...item.media,
-        latestEpisode: item.episode,
-        airingAt: item.airingAt
-      });
-    }
-  });
 
-  return Array.from(uniqueMap.values());
+    const uniqueMap = new Map();
+    airingData.forEach(item => {
+      if (!uniqueMap.has(item.media.id)) {
+        uniqueMap.set(item.media.id, {
+          ...item.media,
+          latestEpisode: item.episode,
+          airingAt: item.airingAt
+        });
+      }
+    });
+
+    const result = Array.from(uniqueMap.values());
+    console.log('[Home] Latest loaded:', result?.length || 0, 'results');
+    return result;
+  } catch (e) {
+    console.error('[Home] Latest fetch failed:', e);
+    return [];
+  }
 };
 
 const fetchAnimeById = async (animeId) => {
@@ -85,6 +101,12 @@ const fetchAnimeById = async (animeId) => {
   return data;
 };
 
+const EMERGENCY_TRENDING = [
+  { id: 16498, idMal: 16498, title: { english: "Attack on Titan", romaji: "Shingeki no Kyojin" }, coverImage: { extraLarge: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-7396ak9vJX9h.png" }, bannerImage: "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-8987ak9vJX9h.jpg", averageScore: 85, episodes: 25, status: "FINISHED", genres: ["Action", "Drama", "Fantasy"] },
+  { id: 11061, idMal: 11061, title: { english: "Hunter x Hunter", romaji: "Hunter x Hunter" }, coverImage: { extraLarge: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-s9edZ9edZ9ed.png" }, bannerImage: "https://s4.anilist.co/file/anilistcdn/media/anime/banner/11061-s9edZ9edZ9ed.jpg", averageScore: 90, episodes: 148, status: "FINISHED", genres: ["Action", "Adventure", "Fantasy"] },
+  { id: 21087, idMal: 21087, title: { english: "One Punch Man", romaji: "One Punch Man" }, coverImage: { extraLarge: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21087-7396ak9vJX9h.png" }, bannerImage: "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21087-8987ak9vJX9h.jpg", averageScore: 83, episodes: 12, status: "FINISHED", genres: ["Action", "Comedy", "Sci-Fi"] }
+];
+
 function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
   const navigate = useNavigate();
   const [showAllLatest, setShowAllLatest] = useState(false);
@@ -98,64 +120,28 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const displayLimit = isMobile ? 4 : 10;
-
-  // Auto-fetch missing synopsis and genres for old watchlist items
-  useEffect(() => {
-    const enrichData = async () => {
-      const needsEnrichment = Object.values(userProgress).some(
-        anime => !anime.synopsis || !anime.genres || anime.genres?.length === 0
-      );
-
-      if (!needsEnrichment) {
-        setEnrichedProgress(userProgress);
-        return;
-      }
-
-      const enriched = { ...userProgress };
-      let hasChanges = false;
-
-      for (const [key, anime] of Object.entries(enriched)) {
-        if ((!anime.synopsis || !anime.genres || anime.genres?.length === 0) && anime.id) {
-          try {
-            const fullData = await fetchAnimeById(anime.id);
-            if (fullData) {
-              enriched[key] = {
-                ...anime,
-                synopsis: fullData.description || 'No description available.',
-                genres: fullData.genres || []
-              };
-              hasChanges = true;
-            }
-          } catch (err) {
-            console.error(`Failed to enrich anime ${anime.id}:`, err);
-          }
-        }
-      }
-
-      if (hasChanges) {
-        setEnrichedProgress(enriched);
-        localStorage.setItem('yugenime_progress', JSON.stringify(enriched));
-      }
-    };
-
-    if (Object.keys(userProgress || {}).length > 0) {
-      enrichData();
-    }
-  }, [userProgress]);
-
-  const { data: trendingKitsu = [], isLoading: isLoadingTrending } = useQuery({
+  // Fetch data
+  const { data: trendingData = [], isLoading: isLoadingTrending } = useQuery({
     queryKey: ['anime', 'trending'],
     queryFn: fetchTrending,
+    retry: 1,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
-  const { data: latestAnime = [], isLoading: isLoadingLatest } = useQuery({
+  const { data: latestRaw = [], isLoading: isLoadingLatest } = useQuery({
     queryKey: ['anime', 'latest'],
     queryFn: fetchLatest,
+    retry: 1,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
-  const isLoading = isLoadingTrending || isLoadingLatest;
-  const heroAnime = trendingKitsu.filter(m => m.bannerImage).slice(0, 5);
+  // Normalize Data
+  const trendingAnime = trendingData.length > 0 ? trendingData : EMERGENCY_TRENDING;
+  const latestAnime = latestRaw.length > 0 ? latestRaw : EMERGENCY_TRENDING;
+
+  // Show loading only if BOTH are still loading and NO data yet
+  const isLoading = (isLoadingTrending || isLoadingLatest) && trendingData.length === 0 && latestRaw.length === 0;
+  const heroAnime = trendingAnime.filter(m => m.bannerImage).slice(0, 5);
 
   const getBadgeText = (anime) => {
     if (anime.format === 'MOVIE') return 'Movie';
@@ -187,48 +173,11 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
       />
 
       <div className="container">
-        {/* Continue Watching (Inline) */}
-        {Object.keys(enrichedProgress || {}).length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            style={{ marginTop: '40px' }}
-          >
-            <div className="section-header">
-              <h2 className="section-title">Continue Watching</h2>
-              <button className="btn btn-ghost" onClick={() => navigate('/account')}>
-                View All <ChevronRight size={16} />
-              </button>
-            </div>
-            <div className="anime-grid">
-              {Object.values(enrichedProgress)
-                .filter(item => item.status !== 'finished')
-                .sort((a, b) => b.updatedAt - a.updatedAt)
-                .slice(0, isMobile ? 4 : 5)
-                .map((anime) => (
-                  <AnimeCard
-                    key={anime.id}
-                    title={anime.title}
-                    image={anime.image}
-                    rating="N/A"
-                    episode={`EP ${anime.episode}`}
-                    synopsis={anime.synopsis || 'No description available.'}
-                    genres={anime.genres || []}
-                    isProgress={true}
-                    onGenreClick={(genre) => navigate(`/genre/${genre}`)}
-                    onClick={() => handleOpenAnimeFromProgress(anime)}
-                  />
-                ))}
-            </div>
-          </motion.section>
-        )}
-
         {/* Latest Releases */}
         <motion.section
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true, margin: "0px" }}
           style={{ marginTop: '60px' }}
         >
           <div className="section-header">
@@ -258,7 +207,7 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
         <motion.section
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true, margin: "0px" }}
           style={{ marginTop: '80px', marginBottom: '100px' }}
         >
           <div className="section-header">
@@ -268,7 +217,7 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
             </button>
           </div>
           <div className="anime-grid">
-            {(showAllTrending ? trendingKitsu : trendingKitsu.slice(0, isMobile ? 4 : 10)).map((anime) => (
+            {(showAllTrending ? trendingAnime : trendingAnime.slice(0, isMobile ? 4 : 10)).map((anime) => (
               <AnimeCard
                 key={anime.id}
                 title={anime.title.english || anime.title.romaji}

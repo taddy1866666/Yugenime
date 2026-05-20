@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ArrowUp, Plus, Check, Clock, ListTodo, CheckCircle2, Bookmark } from 'lucide-react';
-import { fetchAniList } from './utils/api';
+import { ChevronRight, ArrowUp, Play, Info, Star, Clock, Plus, Check, ListTodo, CheckCircle2, Bookmark } from 'lucide-react';
+import { fetchAniList, consumetApi } from './utils/api';
 import Button from './components/Button';
 
 import Navbar from './components/Navbar';
@@ -14,6 +15,7 @@ import Genre from './pages/Genre';
 import Search from './pages/Search';
 import TopAnime from './pages/TopAnime';
 import Footer from './components/Footer';
+import VideoPlayer from './components/VideoPlayer';
 
 import './App.css';
 
@@ -25,6 +27,10 @@ function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [consumetAnime, setConsumetAnime] = useState(null);
+  const [selectedEpisode, setSelectedEpisode] = useState(null);
+  const [videoSources, setVideoSources] = useState(null);
+  const [activeProvider, setActiveProvider] = useState('hianime');
 
   // Initialize progress from localStorage
   const [userProgress, setUserProgress] = useState(() => {
@@ -60,24 +66,27 @@ function App() {
     // Standardize anime data for consistent rendering
     const standardizedAnime = {
       ...anime,
-      title: typeof anime.title === 'string' 
-        ? { english: anime.title, romaji: anime.title } 
+      title: typeof anime.title === 'string'
+        ? { english: anime.title, romaji: anime.title }
         : anime.title
     };
 
     setSelectedAnime(standardizedAnime);
     setEpisodes([]);
     setIsLoadingEpisodes(true);
+    setConsumetAnime(null);
+    setVideoSources(null);
+    setSelectedEpisode(null);
 
     // Set Video Trailer (AniList Primary)
     if (anime.trailer && anime.trailer.site === 'youtube') {
       setPlayingVideo(`https://www.youtube.com/embed/${anime.trailer.id}?autoplay=1`);
     } else {
-      setPlayingVideo(""); // Reset, we will try Jikan fallback below
+      setPlayingVideo("");
     }
 
     try {
-      // 1. Fetch Anime Details (Jikan) for backup trailer
+      // 1. Fetch Trailer Fallbacks (Jikan)
       const detailRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.idMal}`);
       const detailData = await detailRes.json();
 
@@ -85,29 +94,60 @@ function App() {
         setPlayingVideo(`https://www.youtube.com/embed/${detailData.data.trailer.youtube_id}?autoplay=1`);
       }
 
-      // If still no video, check Jikan Video Gallery (PVs)
-      if (!anime.trailer && !detailData.data?.trailer?.youtube_id) {
-        const videoRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.idMal}/videos`);
-        const videoData = await videoRes.json();
-        const promoVid = videoData.data?.promo?.[0]?.trailer?.youtube_id;
-        if (promoVid) {
-          setPlayingVideo(`https://www.youtube.com/embed/${promoVid}?autoplay=1`);
+      // 2. Search & Fetch Real Episodes from Consumet (Using Meta-Anilist)
+      let foundInfo = null;
+
+      try {
+        console.log(`[Smart Match] Trying direct ID Sync: ${standardizedAnime.id}`);
+        // The new Meta-Anilist backend can fetch info using the ID directly!
+        const directInfo = await consumetApi.getInfo(standardizedAnime.id, 'anilist');
+        if (directInfo && directInfo.episodes && directInfo.episodes.length > 0) {
+          foundInfo = directInfo;
+        }
+      } catch (e) {
+        console.warn("Direct ID match failed, falling back to title search.");
+      }
+
+      if (!foundInfo) {
+        const titlesToTry = [
+          standardizedAnime.title.english,
+          standardizedAnime.title.romaji
+        ].filter(Boolean);
+
+        for (const t of titlesToTry) {
+          if (foundInfo) break;
+          const searchResults = await consumetApi.search(t);
+          if (searchResults && searchResults.results?.length > 0) {
+            const bestMatch = searchResults.results[0];
+            const fullInfo = await consumetApi.getInfo(bestMatch.id, 'anilist');
+            if (fullInfo && fullInfo.episodes && fullInfo.episodes.length > 0) {
+              foundInfo = fullInfo;
+              break;
+            }
+          }
         }
       }
 
-      // 2. Generate Episodes Instantly (Zero API Calls)
-      const totalEpisodes = anime.latestEpisode || (anime.nextAiringEpisode ? anime.nextAiringEpisode.episode - 1 : anime.episodes) || 1;
-      
-      const allEpisodes = [];
-      for (let i = totalEpisodes; i >= 1; i--) {
-        allEpisodes.push({ mal_id: i });
+      if (foundInfo) {
+        setConsumetAnime(foundInfo);
+        setActiveProvider('anilist');
+        const sortedEps = [...foundInfo.episodes].sort((a, b) => b.number - a.number);
+        setEpisodes(sortedEps);
+      } else {
+        console.warn("No real episodes found, using placeholders.");
+        const totalEpisodes = anime.latestEpisode || (anime.nextAiringEpisode ? anime.nextAiringEpisode.episode - 1 : anime.episodes) || 1;
+        const fallbackEps = [];
+        for (let i = totalEpisodes; i >= 1; i--) {
+          fallbackEps.push({ number: i, id: i, title: `Episode ${i}` });
+        }
+        setEpisodes(fallbackEps);
       }
 
-      setEpisodes(allEpisodes);
     } catch (error) {
       console.error("Error in handleOpenAnime:", error);
     } finally {
       setIsLoadingEpisodes(false);
+      setIsModalLoading(false);
     }
   }
 
@@ -131,31 +171,84 @@ function App() {
     }
     setIsModalLoading(false);
   }
+  const playEpisode = async (episode, targetServer = null) => {
+    // Guard: Check if episode and anime are valid
+    if (!episode || !selectedAnime) {
+      console.warn('[Playback] Cannot play: episode or anime is null');
+      return;
+    }
 
-  const playEpisode = (episodeNumber) => {
-    const title = selectedAnime.title.english || selectedAnime.title.romaji;
-    const animeId = String(selectedAnime.id);
+    setSelectedEpisode(episode);
+    setIsModalLoading(true);
+    const animeId = selectedAnime.id;
+    const malId = selectedAnime.idMal || selectedAnime.id;
+    const epNum = episode.number || 1;
+    const animeTitle = selectedAnime.title.english || selectedAnime.title.romaji;
 
-    // Update Progress
-    setUserProgress(prev => ({
-      ...prev,
-      [animeId]: {
-        id: selectedAnime.id,
-        idMal: selectedAnime.idMal,
-        title: title,
-        episode: episodeNumber,
-        image: selectedAnime.coverImage?.extraLarge,
-        synopsis: selectedAnime.description || selectedAnime.synopsis,
-        genres: selectedAnime.genres,
-        updatedAt: Date.now(),
-        status: 'watching'
+    try {
+      console.log(`[Playback] ${targetServer || 'Auto'} mode for Ep ${epNum}`);
+
+      if (targetServer === 'vidlink') {
+        // Correct Vidlink Format: /anilist/ID?episode=NUMBER
+        const url = `https://vidlink.pro/anime/anilist/${animeId}?episode=${epNum}&primaryColor=ff0000`;
+        setPlayingVideo(url);
+        setVideoSources({ sources: [{ url, isEmbed: true }] });
+      } else if (targetServer === 'vidsrc') {
+        // Vidsrc.xyz is the new stable alternative
+        const url = `https://vidsrc.xyz/embed/anime/${animeId}/${epNum}`;
+        setPlayingVideo(url);
+        setVideoSources({ sources: [{ url, isEmbed: true }] });
+      } else if (targetServer === 'animepahe') {
+        const url = `https://animepahe.pw/?search=${encodeURIComponent(animeTitle)}`;
+        setPlayingVideo(url);
+        setVideoSources({ sources: [{ url, isEmbed: true, quality: 'animepahe' }] });
+      } else {
+        // Auto logic: Try Vidlink first then Vidsrc.xyz
+        try {
+          // Try local API first
+          let sources = await consumetApi.getSources(episode.id, epNum, animeId);
+          if (sources && sources.sources && sources.sources.length > 0 && !sources.isFallback) {
+            setVideoSources(sources);
+            const mainSource = sources.sources.find(s => s.quality === 'default' || s.quality === 'auto') || sources.sources[0];
+            setPlayingVideo(mainSource.url);
+          } else {
+            throw new Error("Local API Down");
+          }
+        } catch (e) {
+          console.warn("Switching to Vidlink God-mode...");
+          const url = `https://vidlink.pro/anime/anilist/${animeId}?episode=${epNum}&primaryColor=ff0000`;
+          setPlayingVideo(url);
+          setVideoSources({ sources: [{ url, isEmbed: true }] });
+        }
       }
-    }));
 
-    // Directly open GogoAnime Search for convenience
-    const url = `https://gogoanime3.co/search.html?keyword=${encodeURIComponent(title)}`;
-    window.open(url, '_blank');
+      setUserProgress(prev => ({
+        ...prev,
+        [String(animeId)]: {
+          id: selectedAnime.id,
+          idMal: selectedAnime.idMal,
+          title: selectedAnime.title.english || selectedAnime.title.romaji,
+          episode: epNum,
+          image: selectedAnime.coverImage?.extraLarge,
+          updatedAt: Date.now(),
+          status: 'watching'
+        }
+      }));
+    } catch (e) {
+      console.error("Playback error, trying Vidsrc.me fallback:", e);
+      const vidsrc = `https://vidsrc.me/embed/anime?anilist=${animeId}&episode=${epNum}&color=ff0000`;
+      setPlayingVideo(vidsrc);
+      setVideoSources({ sources: [{ url: vidsrc, isEmbed: true }] });
+    } finally {
+      setIsModalLoading(false);
+    }
   }
+
+  const getCurrentServer = () => {
+    if (playingVideo?.includes('vidlink')) return 'vidlink';
+    if (playingVideo?.includes('vidsrc')) return 'vidsrc';
+    return 'auto';
+  };
 
   const closeModal = () => {
     setSelectedAnime(null);
@@ -186,7 +279,7 @@ function App() {
   const removeFromWatchlist = () => {
     const animeId = String(selectedAnime.id);
     setUserProgress(prev => {
-      const copy = {...prev};
+      const copy = { ...prev };
       delete copy[animeId];
       return copy;
     });
@@ -209,8 +302,8 @@ function App() {
       <Navbar />
 
       {isModalLoading && (
-        <div className="loader-container" style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)' }}>
-          <div className="loader-ring"></div>
+        <div className="loader-container" style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.9)' }}>
+          <div className="loader-ring" style={{ borderTopColor: 'var(--accent)' }}></div>
         </div>
       )}
 
@@ -221,6 +314,7 @@ function App() {
           <Route path="/account" element={<AccountView progress={userProgress} setProgress={setUserProgress} onBack={() => navigate(-1)} onAnimeClick={handleOpenAnimeFromProgress} />} />
           <Route path="/search" element={<Search handleOpenAnime={handleOpenAnime} />} />
           <Route path="/top-anime" element={<TopAnime handleOpenAnime={handleOpenAnime} />} />
+          <Route path="*" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnime} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
         </Routes>
       </AnimatePresence>
 
@@ -243,9 +337,28 @@ function App() {
               <button onClick={closeModal} className="modal-close">✕</button>
               <div className="modal-body">
                 <div className="modal-main">
-                  <div className="video-container">
+                  <div className="video-container" style={{ minHeight: '450px' }}>
                     {playingVideo ? (
-                      <iframe src={playingVideo} width="100%" height="450px" frameBorder="0" allowFullScreen style={{ borderRadius: '16px', backgroundColor: '#000' }}></iframe>
+                      playingVideo.includes('.m3u8') || playingVideo.includes('.mp4') ? (
+                        <VideoPlayer
+                          sources={videoSources?.sources || [{ url: playingVideo, quality: 'default' }]}
+                          poster={selectedAnime.bannerImage || selectedAnime.coverImage?.extraLarge}
+                          onEnded={() => {
+                            const currentIndex = episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number);
+                            if (currentIndex > 0) playEpisode(episodes[currentIndex - 1]);
+                          }}
+                        />
+                      ) : (
+                        <iframe
+                          src={playingVideo}
+                          width="100%"
+                          height="450px"
+                          frameBorder="0"
+                          allowFullScreen
+                          style={{ borderRadius: '16px', backgroundColor: '#000' }}
+                          title="Anime Player"
+                        ></iframe>
+                      )
                     ) : (
                       <div className="no-video-placeholder">
                         <img src={selectedAnime.bannerImage || selectedAnime.coverImage?.extraLarge} alt="Placeholder" />
@@ -260,6 +373,86 @@ function App() {
                       </div>
                     )}
                   </div>
+ 
+                  <div className="server-selector" style={{ display: 'flex', gap: '10px', marginTop: '15px', padding: '0 5px', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', marginRight: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Server:</span>
+                    {[
+                      { id: 'auto', label: 'Primary (Auto)', active: !playingVideo?.includes('vidlink') && !playingVideo?.includes('vidsrc') && !playingVideo?.includes('localhost') },
+                      { id: 'vidlink', label: 'Vidlink (MAL)', active: playingVideo?.includes('vidlink') },
+                      { id: 'vidsrc', label: 'Vidsrc (AniList)', active: playingVideo?.includes('vidsrc') },
+                      { id: 'animepahe', label: 'AnimePahe', active: playingVideo?.includes('animepahe.pw') }
+                    ].map(server => (
+                      <button 
+                        key={server.id}
+                        className={`server-btn ${server.active ? 'active' : ''}`}
+                        onClick={() => {
+                          playEpisode(selectedEpisode, server.id);
+                        }}
+                      >
+                        {server.label}
+                      </button>
+                    ))}
+                  </div>
+
+
+                  {videoSources?.sources && videoSources.sources.length > 1 && (
+                    <div className="quality-selector" style={{ display: 'flex', gap: '8px', marginTop: '12px', padding: '0 5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quality:</span>
+                      {videoSources.sources.map((source, idx) => (
+                        <button 
+                          key={idx}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            borderRadius: '6px',
+                            border: `1px solid ${playingVideo === source.url ? 'var(--primary)' : 'var(--border-color)'}`,
+                            backgroundColor: playingVideo === source.url ? 'var(--primary)' : 'var(--bg-secondary)',
+                            color: playingVideo === source.url ? '#fff' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            fontWeight: playingVideo === source.url ? 600 : 400,
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            setPlayingVideo(source.url);
+                          }}
+                        >
+                          {source.quality || 'Source'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedEpisode && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number) === episodes.length - 1}
+                          onClick={() => {
+                            const currentIndex = episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number);
+                            if (currentIndex < episodes.length - 1) playEpisode(episodes[currentIndex + 1], getCurrentServer());
+                          }}
+                          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                        >
+                          Previous
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number) === 0}
+                          onClick={() => {
+                            const currentIndex = episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number);
+                            if (currentIndex > 0) playEpisode(episodes[currentIndex - 1], getCurrentServer());
+                          }}
+                          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '0.9rem', fontWeight: 600 }}>
+                        Episode {selectedEpisode.number}
+                      </span>
+                    </div>
+                  )}
                   <h2 style={{ marginTop: '25px', fontSize: '2.2rem', fontWeight: 800 }}>
                     {selectedAnime.title?.english || selectedAnime.title?.romaji || 'Unknown Title'}
                   </h2>
@@ -305,12 +498,12 @@ function App() {
                         >
                           In Watchlist
                         </Button>
-                        
+
                         <Dropdown
                           currentStatus={userProgress[String(selectedAnime.id)].status || 'watching'}
                           onStatusChange={(status) => updateStatus(status)}
                           triggerButton={
-                            <select 
+                            <select
                               className="status-select-premium"
                               value={userProgress[String(selectedAnime.id)].status || 'watching'}
                               onChange={(e) => updateStatus(e.target.value)}
@@ -340,31 +533,36 @@ function App() {
                   </div>
                   <p
                     style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.05rem' }}
-                    dangerouslySetInnerHTML={{ __html: selectedAnime.description || 'No description available.' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedAnime.description || 'No description available.') }}
                   ></p>
                 </div>
 
                 <div className="modal-aside">
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Episodes</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Episodes</h3>
+                  </div>
                   <div className="episodes-grid">
                     {isLoadingEpisodes ? (
                       <div className="loader-ring" style={{ margin: '40px auto' }}></div>
                     ) : episodes.length > 0 ? (
                       episodes.map((ep) => {
+                        const epNum = ep.number || ep.mal_id;
                         const progress = userProgress[String(selectedAnime.id)];
-                        const isWatched = progress?.status === 'finished' || (progress?.episode >= ep.mal_id);
-                        
+                        const isWatched = progress?.status === 'finished' || (progress?.episode >= epNum);
+                        const isCurrent = selectedEpisode?.number === epNum;
+
                         return (
                           <button
-                            key={ep.mal_id}
-                            className={`episode-num-btn ${isWatched ? 'watched' : ''}`}
-                            style={{ 
-                              background: isWatched ? 'var(--accent)' : 'var(--surface-light)',
-                              color: isWatched ? 'white' : 'inherit' 
+                            key={ep.id || ep.mal_id}
+                            className={`episode-num-btn ${isWatched ? 'watched' : ''} ${isCurrent ? 'current' : ''}`}
+                            style={{
+                              background: isCurrent ? 'white' : (isWatched ? 'var(--accent)' : 'var(--surface-light)'),
+                              color: isCurrent ? 'black' : (isWatched ? 'white' : 'inherit'),
+                              border: isCurrent ? 'none' : '1px solid rgba(255,255,255,0.1)'
                             }}
-                            onClick={() => playEpisode(ep.mal_id)}
+                            onClick={() => playEpisode(ep)}
                           >
-                            {ep.mal_id}
+                            {epNum}
                           </button>
                         );
                       })

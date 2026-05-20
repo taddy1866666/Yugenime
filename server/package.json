@@ -1,0 +1,22 @@
+{
+  "name": "yugenime-server",
+  "version": "1.0.0",
+  "description": "Backend for Yugenime Anime Streaming",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "@consumet/extensions": "^1.8.8",
+    "axios": "^1.16.0",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.1.5",
+    "got-scraping": "^4.2.1",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1"
+  }
+}

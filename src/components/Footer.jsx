@@ -11,51 +11,57 @@ const Footer = () => {
       <div className="container">
         <div className="footer-content">
 
-          {/* Brand */}
+          {/* Brand & Socials */}
           <div className="footer-brand">
-            <h2>YUGENIME</h2>
-            <p>
-              Experience anime like never before. Real-time updates and a
-              community-driven platform for all anime fans.
-            </p>
-            <div className="footer-socials">
-              <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer" className="social-icon" title="Developer Portfolio">
-                <Globe size={18} />
-              </a>
+            <div className="footer-logo">
+              <h1>Yugen<span>ime</span></h1>
             </div>
+            <p className="footer-description">
+              The ultimate destination for anime enthusiasts. Discover, track, and watch your favorite series with our community-driven platform.
+            </p>
           </div>
 
           {/* Quick Links */}
           <div className="footer-links">
-            <h4>Navigate</h4>
+            <h4 className="footer-title">Navigation</h4>
             <ul>
               <li><Link to="/">Home</Link></li>
               <li><Link to="/top-anime">Top 100</Link></li>
-              <li><Link to="/search">Search</Link></li>
+              <li><Link to="/search">Discover</Link></li>
               <li><Link to="/account">My Watchlist</Link></li>
             </ul>
           </div>
 
           {/* Genres */}
           <div className="footer-links">
-            <h4>Genres</h4>
-            <ul>
-              <li><Link to="/genre/Action">Action</Link></li>
-              <li><Link to="/genre/Adventure">Adventure</Link></li>
-              <li><Link to="/genre/Fantasy">Fantasy</Link></li>
-              <li><Link to="/genre/Romance">Romance</Link></li>
-            </ul>
+            <h4 className="footer-title">Popular Genres</h4>
+            <div className="footer-grid-links">
+              <ul>
+                <li><Link to="/genre/Action">Action</Link></li>
+                <li><Link to="/genre/Adventure">Adventure</Link></li>
+                <li><Link to="/genre/Comedy">Comedy</Link></li>
+                <li><Link to="/genre/Drama">Drama</Link></li>
+              </ul>
+              <ul>
+                <li><Link to="/genre/Fantasy">Fantasy</Link></li>
+                <li><Link to="/genre/Romance">Romance</Link></li>
+                <li><Link to="/genre/Sci-Fi">Sci-Fi</Link></li>
+                <li><Link to="/genre/Horror">Horror</Link></li>
+              </ul>
+            </div>
           </div>
 
           {/* Newsletter */}
           <div className="footer-newsletter">
-            <h4>Stay Updated</h4>
-            <p>Get notified about new releases and features.</p>
+            <h4 className="footer-title">Stay in the Loop</h4>
+            <p>Subscribe to get the latest anime updates and news.</p>
             <form className="newsletter-form" onSubmit={(e) => e.preventDefault()}>
-              <input type="email" placeholder="Your email address" />
-              <button type="submit" className="newsletter-btn">
-                <Send size={16} />
-              </button>
+              <div className="newsletter-input-group">
+                <input type="email" placeholder="Email address" required />
+                <button type="submit" className="newsletter-submit">
+                  <Send size={18} />
+                </button>
+              </div>
             </form>
           </div>
 
@@ -63,12 +69,11 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="footer-bottom">
-          <p>© {currentYear} Yugenime. All rights reserved.</p>
+          <div className="footer-copyright">
+            <p>© {currentYear} <span>Yugenime</span>. All rights reserved.</p>
+          </div>
           <p className="footer-credit">
-            Built with <Heart size={13} fill="var(--accent)" color="var(--accent)" /> by{' '}
-            <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer" className="dev-link">
-              Taddy
-            </a>
+            Built with <Heart size={13} fill="var(--text-muted)" color="var(--text-muted)" /> by <a href="https://taddy-chi.vercel.app/" target="_blank" rel="noopener noreferrer">Taddy</a>
           </p>
         </div>
       </div>

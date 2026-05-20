@@ -187,11 +187,11 @@
     height: 70vh;
     min-height: 500px;
   }
-  
+
   .hero-content {
     padding-top: 40px;
   }
-  
+
   .hero-text {
     max-width: 90%;
   }
@@ -210,21 +210,21 @@
     flex-direction: row;
     flex-wrap: wrap;
   }
-  
+
   .hero-controls {
     bottom: 20px;
   }
-  
+
   .hero-nav-btn {
     width: 36px;
     height: 36px;
   }
-  
+
   .hero-dot {
     width: 6px;
     height: 6px;
   }
-  
+
   .hero-dot.active {
     width: 24px;
   }
@@ -249,11 +249,12 @@
     height: 60vh;
     min-height: 400px;
   }
-  
+
   .hero-content {
     padding-top: 20px;
     align-items: flex-end;
-    padding-bottom: 110px; /* Increased padding to avoid buttons hitting dots */
+    padding-bottom: 110px;
+    /* Increased padding to avoid buttons hitting dots */
   }
 
   .hero-title {
@@ -273,23 +274,23 @@
   .hero-genres {
     gap: 4px;
   }
-  
+
   .hero-description {
     display: none;
   }
-  
+
   .hero-actions {
     gap: 10px;
     width: 100%;
   }
-  
+
   .hero-actions .btn {
     flex: 1;
     padding: 10px;
     font-size: 0.8rem;
     min-height: 40px;
   }
-  
+
   .hero-controls {
     bottom: auto;
     top: 50%;
@@ -305,18 +306,18 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
     z-index: 100;
   }
-  
+
   .hero-dots {
     flex-direction: column;
     gap: 8px;
     padding: 0;
   }
-  
+
   .hero-dot {
     width: 6px;
     height: 6px;
   }
-  
+
   .hero-dot.active {
     width: 6px;
     height: 20px;

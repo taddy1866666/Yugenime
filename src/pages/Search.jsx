@@ -4,18 +4,41 @@ import { Search as SearchIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AnimeCard from '../components/AnimeCard';
-import { fetchAniList } from '../utils/api';
+import { fetchAniList, LOCAL_API_URL } from '../utils/api';
 import './Search.css';
 
 const fetchSearchResults = async (query, genre, format) => {
   if (!query && !genre && !format) return [];
 
+  // 1. Try local backend first (it has Gogoanime/HiAnime/AniPahe fallbacks)
+  try {
+    const response = await fetch(`${LOCAL_API_URL}/search/${encodeURIComponent(query || ' ')}?genre=${genre || ''}&format=${format || ''}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        return data.results;
+      }
+    }
+  } catch (err) {
+    console.error("Backend search failed:", err);
+  }
+
+  // 2. Fallback to direct AniList GraphQL
   const searchQuery = `
     query ($search: String, $genre: String, $format: MediaFormat) {
       Page (perPage: 40) {
-        media (search: $search, genre_in: [$genre], format: $format, sort: TRENDING_DESC, type: ANIME, isAdult: false) {
-          id idMal title { english romaji } bannerImage description
-          coverImage { extraLarge } averageScore episodes status genres format
+        media (search: $search, type: ANIME, isAdult: false ${genre ? ', genre_in: [$genre]' : ''} ${format ? ', format: $format' : ''}) {
+          id
+          idMal
+          title { english romaji }
+          bannerImage
+          description
+          coverImage { extraLarge }
+          averageScore
+          episodes
+          status
+          genres
+          format
           nextAiringEpisode { airingAt episode }
           trailer { id site thumbnail }
         }
@@ -23,16 +46,33 @@ const fetchSearchResults = async (query, genre, format) => {
     }
   `;
 
-  const variables = {};
-  if (query) variables.search = query;
-  if (genre) variables.genre = genre;
-  if (format) variables.format = format;
+  const variables = { 
+    search: query || undefined, 
+    genre: genre || undefined, 
+    format: format || undefined 
+  };
 
-  const data = await fetchAniList(searchQuery, variables);
-  return data || [];
+  try {
+    const response = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: searchQuery, variables })
+    });
+
+    const json = await response.json();
+    return json?.data?.Page?.media || [];
+  } catch (err) {
+    console.error("AniList fallback failed:", err);
+    return [];
+  }
 };
 
-const GENRES = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mecha", "Music", "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"];
+const GENRES = [
+  "Action", "Adventure", "Comedy", "Drama", "Ecchi", "Fantasy", 
+  "Horror", "Mahou Shoujo", "Mecha", "Music", "Mystery", 
+  "Psychological", "Romance", "Sci-Fi", "Slice of Life", 
+  "Sports", "Supernatural", "Thriller"
+];
 
 function Search({ handleOpenAnime }) {
   const navigate = useNavigate();
@@ -70,17 +110,19 @@ function Search({ handleOpenAnime }) {
     }, 500);
   };
 
+  const hasSearch = !!debouncedQuery || !!selectedGenre || !!selectedFormat;
+
   const { data: searchResults = [], isLoading } = useQuery({
     queryKey: ['search', debouncedQuery, selectedGenre, selectedFormat],
     queryFn: () => fetchSearchResults(debouncedQuery, selectedGenre, selectedFormat),
-    enabled: !!debouncedQuery || !!selectedGenre || !!selectedFormat,
+    enabled: hasSearch,
     staleTime: 1000 * 60 * 5,
   });
 
   const sortedResults = [...searchResults].sort((a, b) => {
     if (!debouncedQuery) return 0;
-    const aTitle = (a.title.english || a.title.romaji || '').toLowerCase();
-    const bTitle = (b.title.english || b.title.romaji || '').toLowerCase();
+    const aTitle = (a.title?.english || a.title?.romaji || '').toLowerCase();
+    const bTitle = (b.title?.english || b.title?.romaji || '').toLowerCase();
     const query = debouncedQuery.toLowerCase();
 
     const aStarts = aTitle.startsWith(query);
@@ -98,65 +140,65 @@ function Search({ handleOpenAnime }) {
     return 'Ongoing';
   };
 
-  const hasSearch = !!debouncedQuery || !!selectedGenre || !!selectedFormat;
-
   return (
     <motion.div
       key="search-view"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="container"
-      style={{ paddingTop: '100px', paddingBottom: '100px', minHeight: '100vh' }}
+      className="container search-page"
+      style={{ paddingTop: '200px', paddingBottom: '100px', minHeight: '100vh' }}
     >
-      <div className="section-header" style={{ marginBottom: '30px' }}>
-        <h2 className="section-title">Discover Anime</h2>
+      <div className="search-header-group">
+        <div className="section-header">
+          <h2 className="section-title">Discover Anime</h2>
+        </div>
+        <p className="search-subtitle">Browse through thousands of anime by title, genre, or format</p>
       </div>
 
-      <div className="search-filters" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '40px' }}>
-        <div className="search-input-box" style={{ flex: '1 1 260px', position: 'relative', minWidth: 0 }}>
-          <SearchIcon size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            placeholder="Search anime titles..."
-            value={inputValue}
-            onChange={handleInputChange}
-            style={{
-              width: '100%',
-              padding: '13px 14px 13px 42px',
-              borderRadius: '12px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              color: 'white',
-              fontSize: '0.95rem',
-              outline: 'none',
-              fontFamily: 'inherit',
-              transition: 'border-color 0.2s',
-            }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border)'}
-          />
+      <div className="search-filters-container">
+        <div className="search-filters">
+          <div className="search-input-wrapper">
+            <SearchIcon size={20} className="search-icon-inner" />
+            <input
+              type="text"
+              placeholder="Search anime titles..."
+              value={inputValue}
+              onChange={handleInputChange}
+              className="search-input-field"
+            />
+          </div>
+
+          <div className="filter-group">
+            <div className="filter-item">
+              <label>Genre</label>
+              <select
+                value={selectedGenre}
+                onChange={(e) => setSelectedGenre(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Genres</option>
+                {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+
+            <div className="filter-item">
+              <label>Format</label>
+              <select
+                value={selectedFormat}
+                onChange={(e) => setSelectedFormat(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Formats</option>
+                <option value="TV">TV Series</option>
+                <option value="MOVIE">Movie</option>
+                <option value="OVA">OVA</option>
+                <option value="ONA">ONA</option>
+                <option value="SPECIAL">Special</option>
+              </select>
+            </div>
+          </div>
         </div>
-
-        <select
-          value={selectedGenre}
-          onChange={(e) => setSelectedGenre(e.target.value)}
-          style={{ padding: '0 16px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', minWidth: '130px' }}
-        >
-          <option value="">All Genres</option>
-          {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-
-        <select
-          value={selectedFormat}
-          onChange={(e) => setSelectedFormat(e.target.value)}
-          style={{ padding: '0 16px', borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', minWidth: '130px' }}
-        >
-          <option value="">All Formats</option>
-          <option value="TV">TV Series</option>
-          <option value="MOVIE">Movie</option>
-          <option value="OVA">OVA</option>
-        </select>
       </div>
 
       {isLoading ? (
@@ -168,8 +210,8 @@ function Search({ handleOpenAnime }) {
           {sortedResults.map((anime) => (
             <AnimeCard
               key={anime.id}
-              title={anime.title.english || anime.title.romaji}
-              image={anime.coverImage.extraLarge}
+              title={anime.title?.english || anime.title?.romaji || anime.title}
+              image={anime.coverImage?.extraLarge || anime.image}
               rating={anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}
               episode={getBadgeText(anime)}
               synopsis={anime.description}
