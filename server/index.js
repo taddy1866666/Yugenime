@@ -46,12 +46,22 @@ const loadSubscriptions = () => {
     return [];
 };
 
+// File locking for concurrent write safety
+let writeQueue = Promise.resolve();
+
 const saveSubscriptions = (subs) => {
-    try {
-        fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), 'utf-8');
-    } catch (e) {
-        console.error('Failed to save subscriptions:', e);
-    }
+    writeQueue = writeQueue.then(() => {
+        return new Promise((resolve) => {
+            try {
+                fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), 'utf-8');
+                resolve();
+            } catch (e) {
+                console.error('Failed to save subscriptions:', e);
+                resolve();
+            }
+        });
+    });
+    return writeQueue;
 };
 
 // Track scheduled notifications to avoid duplicates
