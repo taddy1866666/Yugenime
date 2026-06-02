@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from './components/ToastProvider';
 import DOMPurify from 'dompurify';
@@ -11,12 +11,14 @@ import Button from './components/Button';
 import Navbar from './components/Navbar';
 import AccountView from './components/AccountView';
 import Dropdown from './components/Dropdown';
-import Home from './pages/Home';
-import Genre from './pages/Genre';
-import Search from './pages/Search';
-import TopAnime from './pages/TopAnime';
 import Footer from './components/Footer';
-import VideoPlayer from './components/VideoPlayer';
+
+// Lazy load pages for code splitting
+const Home = lazy(() => import('./pages/Home'));
+const Genre = lazy(() => import('./pages/Genre'));
+const Search = lazy(() => import('./pages/Search'));
+const TopAnime = lazy(() => import('./pages/TopAnime'));
+const VideoPlayer = lazy(() => import('./components/VideoPlayer'));
 
 import './App.css';
 
@@ -276,10 +278,8 @@ function App() {
 
         const keyRes = await fetch('/api/push-public-key');
         if (!keyRes.ok) {
-          const isDev = window.location.hostname === 'localhost';
-          throw new Error(isDev 
-            ? 'Server not running. Start backend with: cd server && npm start'
-            : 'Push notification service unavailable. Please try again later.');
+          console.warn('[Push] Backend API not available, notifications disabled');
+          return; // Quietly skip on production if API not available
         }
         
         const { publicKey } = await keyRes.json();
@@ -308,11 +308,7 @@ function App() {
         addToast('✅ Push notifications enabled!', 'success', 3000);
       } catch (err) {
         console.error('[Push] Setup failed:', err.message);
-        const isDev = window.location.hostname === 'localhost';
-        const message = isDev 
-          ? '⚠️ Notifications disabled: Backend server not running'
-          : '⚠️ Push notifications temporarily unavailable';
-        addToast(message, 'warning', 5000);
+        // Don't show error toast on production - just log it
       }
     };
 
@@ -343,13 +339,15 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
+
+  const handleOpenAnimeCallback = useCallback(handleOpenAnime, []);
 
   useEffect(() => {
-    handleOpenAnimeRef.current = handleOpenAnime;
-  }, [handleOpenAnime]);
+    handleOpenAnimeRef.current = handleOpenAnimeCallback;
+  }, [handleOpenAnimeCallback]);
 
   async function handleOpenAnime(anime) {
     // Standardize anime data for consistent rendering
@@ -539,14 +537,14 @@ function App() {
     return 'auto';
   };
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setSelectedAnime(null);
     setEpisodes([]);
     setPlayingVideo("");
     setShowStatusMenu(false);
-  }
+  }, []);
 
-  const addToWatchlist = (status = 'watching') => {
+  const addToWatchlist = useCallback((status = 'watching') => {
     const animeId = String(selectedAnime.id);
     setUserProgress(prev => ({
       ...prev,
@@ -563,18 +561,18 @@ function App() {
       }
     }));
     setShowStatusMenu(false);
-  };
+  }, [selectedAnime]);
 
-  const removeFromWatchlist = () => {
+  const removeFromWatchlist = useCallback(() => {
     const animeId = String(selectedAnime.id);
     setUserProgress(prev => {
       const copy = { ...prev };
       delete copy[animeId];
       return copy;
     });
-  };
+  }, [selectedAnime]);
 
-  const updateStatus = (status) => {
+  const updateStatus = useCallback((status) => {
     const animeId = String(selectedAnime.id);
     setUserProgress(prev => ({
       ...prev,
@@ -584,7 +582,7 @@ function App() {
         updatedAt: Date.now()
       }
     }));
-  };
+  }, [selectedAnime]);
 
   return (
     <div className="app">
@@ -597,14 +595,20 @@ function App() {
       )}
 
       <AnimatePresence mode="wait">
-        <Routes>
-          <Route path="/" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnime} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
-          <Route path="/genre/:genreName" element={<Genre handleOpenAnime={handleOpenAnime} />} />
-          <Route path="/account" element={<AccountView progress={userProgress} setProgress={setUserProgress} onBack={() => navigate(-1)} onAnimeClick={handleOpenAnimeFromProgress} />} />
-          <Route path="/search" element={<Search handleOpenAnime={handleOpenAnime} />} />
-          <Route path="/top-anime" element={<TopAnime handleOpenAnime={handleOpenAnime} />} />
-          <Route path="*" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnime} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
-        </Routes>
+        <Suspense fallback={
+          <div className="loader-container" style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.9)' }}>
+            <div className="loader-ring" style={{ borderTopColor: 'var(--accent)' }}></div>
+          </div>
+        }>
+          <Routes>
+            <Route path="/" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnimeCallback} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
+            <Route path="/genre/:genreName" element={<Genre handleOpenAnime={handleOpenAnimeCallback} />} />
+            <Route path="/account" element={<AccountView progress={userProgress} setProgress={setUserProgress} onBack={() => navigate(-1)} onAnimeClick={handleOpenAnimeFromProgress} />} />
+            <Route path="/search" element={<Search handleOpenAnime={handleOpenAnimeCallback} />} />
+            <Route path="/top-anime" element={<TopAnime handleOpenAnime={handleOpenAnimeCallback} />} />
+            <Route path="*" element={<Home userProgress={userProgress} handleOpenAnime={handleOpenAnimeCallback} handleOpenAnimeFromProgress={handleOpenAnimeFromProgress} />} />
+          </Routes>
+        </Suspense>
       </AnimatePresence>
 
       <Footer />
@@ -629,14 +633,16 @@ function App() {
                   <div className="video-container" style={{ minHeight: '450px' }}>
                     {playingVideo ? (
                       playingVideo.includes('.m3u8') || playingVideo.includes('.mp4') ? (
-                        <VideoPlayer
-                          sources={videoSources?.sources || [{ url: playingVideo, quality: 'default' }]}
-                          poster={selectedAnime.bannerImage || selectedAnime.coverImage?.extraLarge}
-                          onEnded={() => {
-                            const currentIndex = episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number);
-                            if (currentIndex > 0) playEpisode(episodes[currentIndex - 1]);
-                          }}
-                        />
+                        <Suspense fallback={<div style={{ width: '100%', height: '450px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading player...</div>}>
+                          <VideoPlayer
+                            sources={videoSources?.sources || [{ url: playingVideo, quality: 'default' }]}
+                            poster={selectedAnime.bannerImage || selectedAnime.coverImage?.extraLarge}
+                            onEnded={() => {
+                              const currentIndex = episodes.findIndex(e => (e.number || e.mal_id) === selectedEpisode.number);
+                              if (currentIndex > 0) playEpisode(episodes[currentIndex - 1]);
+                            }}
+                          />
+                        </Suspense>
                       ) : (
                         <iframe
                           src={playingVideo}
