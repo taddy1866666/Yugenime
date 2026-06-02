@@ -14,9 +14,9 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = (message, type = 'info', duration = 4000) => {
+  const addToast = (message, type = 'info', duration = 4000, animeData = null) => {
     const id = Date.now();
-    const toast = { id, message, type, duration };
+    const toast = { id, message, type, duration, animeData };
     setToasts(prev => [...prev, toast]);
     return id;
   };
@@ -35,6 +35,7 @@ export const ToastProvider = ({ children }) => {
             message={toast.message}
             type={toast.type}
             duration={toast.duration}
+            animeData={toast.animeData}
             onClose={() => removeToast(toast.id)}
           />
         ))}

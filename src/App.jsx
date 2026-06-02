@@ -77,6 +77,7 @@ function App() {
   userProgressRef.current = userProgress;
 
   const handleOpenAnimeRef = useRef(null);
+  const pushSetupInitiatedRef = useRef(false);
 
   useEffect(() => {
     const checkAnimeReleases = async () => {
@@ -142,25 +143,23 @@ function App() {
             // A new episode has released since the last check!
             const animeTitle = anime.title.english || anime.title.romaji;
             
+            // Show anime card notification
             addToast(
-              <div 
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }} 
-                onClick={() => {
+              'New Episode Available!',
+              'premium',
+              10000,
+              {
+                title: animeTitle,
+                episode: latestEpAvailable,
+                coverImage: anime.coverImage?.extraLarge,
+                genres: anime.genres,
+                airingAt: null, // Already released
+                onClick: () => {
                   if (handleOpenAnimeRef.current) {
                     handleOpenAnimeRef.current(anime);
                   }
-                }}
-              >
-                <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.95rem' }}>New Episode Release!</span>
-                <span style={{ fontSize: '0.85rem', color: 'white', lineHeight: 1.3 }}>
-                  <strong>{animeTitle}</strong> Episode <strong>{latestEpAvailable}</strong> is now available.
-                </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  Click to watch now
-                </span>
-              </div>,
-              'premium',
-              10000
+                }
+              }
             );
 
             currentNotified[animeIdStr] = latestEpAvailable;
@@ -230,6 +229,10 @@ function App() {
 
   // Service Worker and Push Notification subscription setup
   useEffect(() => {
+    // Prevent running this effect multiple times
+    if (pushSetupInitiatedRef.current) return;
+    pushSetupInitiatedRef.current = true;
+
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       const registerAndSubscribe = async () => {
         try {
@@ -270,6 +273,11 @@ function App() {
           const { publicKey } = await keyRes.json();
           if (!publicKey) {
             console.error('[Push] Failed to fetch VAPID public key');
+            addToast(
+              'Failed to fetch notification settings. Please refresh the page.',
+              'error',
+              4000
+            );
             return;
           }
 
@@ -292,6 +300,11 @@ function App() {
 
           if (!subRes.ok) {
             console.error('[Push] Failed to register subscription with server');
+            addToast(
+              'Failed to enable notifications. Please try refreshing the page.',
+              'error',
+              4000
+            );
             return;
           }
 
@@ -321,7 +334,7 @@ function App() {
     } else {
       console.warn('[Push] Browser does not support Service Workers or Push API');
     }
-  }, [addToast]);
+  }, []);
 
   // Check URL query parameters to open anime from background push notifications
   const location = useLocation();
