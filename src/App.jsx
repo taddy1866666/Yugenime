@@ -237,17 +237,41 @@ function App() {
           const reg = await navigator.serviceWorker.register('/sw.js');
           console.log('[ServiceWorker] Registered successfully with scope:', reg.scope);
 
+          // Check current notification permission
+          const currentPermission = Notification.permission;
+          
+          // Only request if not already denied
+          if (currentPermission === 'denied') {
+            console.warn('[Notification] Permission previously denied by user');
+            addToast(
+              'Push notifications are disabled. Enable them in your browser settings to get episode alerts.',
+              'info',
+              5000
+            );
+            return;
+          }
+
           // Request browser notification permission
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
             console.warn('[Notification] Permission not granted:', permission);
+            if (permission === 'denied') {
+              addToast(
+                'You can enable notifications in browser settings to receive episode alerts.',
+                'warning',
+                5000
+              );
+            }
             return;
           }
 
           // Fetch server VAPID public key
           const keyRes = await fetch('/api/push-public-key');
           const { publicKey } = await keyRes.json();
-          if (!publicKey) return;
+          if (!publicKey) {
+            console.error('[Push] Failed to fetch VAPID public key');
+            return;
+          }
 
           const applicationServerKey = urlBase64ToUint8Array(publicKey);
           
@@ -260,15 +284,30 @@ function App() {
           setPushSubscription(sub);
 
           // Register subscription in server database
-          await fetch('/api/push-subscribe', {
+          const subRes = await fetch('/api/push-subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ subscription: sub })
           });
 
-          console.log('[Push] Registered and subscribed to background push notifications.');
+          if (!subRes.ok) {
+            console.error('[Push] Failed to register subscription with server');
+            return;
+          }
+
+          console.log('[Push] ✅ Registered and subscribed to background push notifications.');
+          addToast(
+            '✅ Push notifications enabled! You\'ll get alerts for new episodes even when the app is closed.',
+            'success',
+            4000
+          );
         } catch (err) {
           console.error('[Push] Setup failed:', err);
+          addToast(
+            'Failed to setup notifications. Please check browser console.',
+            'error',
+            4000
+          );
         }
       };
 
@@ -279,8 +318,10 @@ function App() {
         window.addEventListener('load', registerAndSubscribe);
         return () => window.removeEventListener('load', registerAndSubscribe);
       }
+    } else {
+      console.warn('[Push] Browser does not support Service Workers or Push API');
     }
-  }, []);
+  }, [addToast]);
 
   // Check URL query parameters to open anime from background push notifications
   const location = useLocation();

@@ -5,6 +5,7 @@ import './Toast.css';
 
 const Toast = ({ message, type = 'info', duration = 4000, onClose }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const durationInSeconds = duration / 1000;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -47,7 +48,10 @@ const Toast = ({ message, type = 'info', duration = 4000, onClose }) => {
           >
             <X size={16} />
           </button>
-          <div className="toast-progress" />
+          <div 
+            className="toast-progress"
+            style={{ animation: `progress ${durationInSeconds}s linear forwards` }}
+          />
         </motion.div>
       )}
     </AnimatePresence>

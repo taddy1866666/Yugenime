@@ -52,8 +52,82 @@ const saveSubscriptions = (subs) => {
     }
 };
 
+// Track scheduled notifications to avoid duplicates
+const scheduledNotifications = new Map();
+
+const scheduleNotificationForRelease = (mediaId, airingAt, anime, sub) => {
+    const scheduleKey = `${mediaId}-${sub.subscription.endpoint}`;
+    
+    // Avoid scheduling the same notification twice
+    if (scheduledNotifications.has(scheduleKey)) {
+        return;
+    }
+
+    const now = Date.now();
+    const airingTime = airingAt * 1000; // Convert to milliseconds
+    const delayMs = airingTime - now;
+
+    // If episode is in the past or too close to now (within 5 seconds), send immediately
+    if (delayMs <= 5000) {
+        sendPushNotification(mediaId, anime, sub, scheduledNotifications, scheduleKey);
+        return;
+    }
+
+    // Schedule notification for 60 seconds after release (to ensure episode is available)
+    const scheduledTime = airingTime + 60000;
+    const timeoutMs = scheduledTime - now;
+
+    console.log(`[Push Scheduler] Scheduled notification for anime ${mediaId} (${anime.title.english || anime.title.romaji}) Episode ${anime.nextAiringEpisode.episode} at ${new Date(airingTime).toLocaleString()} (in ${Math.round(delayMs / 1000)} seconds)`);
+
+    const timeoutId = setTimeout(() => {
+        sendPushNotification(mediaId, anime, sub, scheduledNotifications, scheduleKey);
+    }, timeoutMs);
+
+    scheduledNotifications.set(scheduleKey, timeoutId);
+};
+
+const sendPushNotification = async (mediaId, anime, sub, scheduledMap, scheduleKey) => {
+    try {
+        const latestEpNum = anime.nextAiringEpisode.episode;
+        const animeTitle = anime.title.english || anime.title.romaji;
+        const payload = JSON.stringify({
+            title: '🎬 New Episode Release!',
+            body: `"${animeTitle}" Episode ${latestEpNum} is now available.`,
+            icon: anime.coverImage.extraLarge || '/favicon.svg',
+            url: `/?openAnimeId=${mediaId}`
+        });
+
+        await webpush.sendNotification(sub.subscription, payload);
+        console.log(`[Push Sent] ${animeTitle} Ep ${latestEpNum} → ${sub.subscription.endpoint.substring(0, 50)}...`);
+
+        // Update lastNotified in subscription
+        const subs = loadSubscriptions();
+        const updatedSub = subs.find(s => s.subscription.endpoint === sub.subscription.endpoint);
+        if (updatedSub) {
+            const watchItem = updatedSub.watchlist.find(w => w.id === mediaId);
+            if (watchItem) {
+                watchItem.lastNotified = latestEpNum;
+                saveSubscriptions(subs);
+            }
+        }
+
+        // Clean up scheduled notification tracker
+        scheduledMap.delete(scheduleKey);
+    } catch (err) {
+        console.error(`[Push Error] Failed to send notification:`, err.message);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+            // Remove dead subscription
+            const subs = loadSubscriptions();
+            const filtered = subs.filter(s => s.subscription.endpoint !== sub.subscription.endpoint);
+            saveSubscriptions(filtered);
+            console.log(`[Push] Removed dead subscription`);
+        }
+        scheduledMap.delete(scheduleKey);
+    }
+};
+
 const checkServerReleases = async () => {
-    console.log('[Push Server] Checking for new anime releases...');
+    console.log('[Push Server] Checking for upcoming anime releases...');
     const subs = loadSubscriptions();
     if (subs.length === 0) return;
 
@@ -101,54 +175,39 @@ const checkServerReleases = async () => {
 
         if (mediaList.length === 0) return;
 
-        let subsUpdated = false;
-
         for (const media of mediaList) {
             const mediaId = media.id;
-            let latestEpAvailable = 0;
-            if (media.nextAiringEpisode) {
-                latestEpAvailable = media.nextAiringEpisode.episode - 1;
-            } else if (media.status === 'FINISHED') {
-                latestEpAvailable = media.episodes || 0;
-            }
+            
+            // For upcoming episodes: use nextAiringEpisode.airingAt
+            if (media.nextAiringEpisode && media.nextAiringEpisode.airingAt) {
+                for (const sub of subs) {
+                    const watchItem = (sub.watchlist || []).find(w => w.id === mediaId);
+                    if (!watchItem) continue;
 
-            if (latestEpAvailable === 0) continue;
+                    const watched = watchItem.episode || 0;
+                    const nextEpisode = media.nextAiringEpisode.episode;
 
-            for (const sub of subs) {
-                const watchItem = (sub.watchlist || []).find(w => w.id === mediaId);
-                if (!watchItem) continue;
-
-                const watched = watchItem.episode || 0;
-                const lastNotified = watchItem.lastNotified || 0;
-
-                if (latestEpAvailable > watched && latestEpAvailable > lastNotified) {
-                    const animeTitle = media.title.english || media.title.romaji;
-                    const payload = JSON.stringify({
-                        title: 'New Episode Release! 🎬',
-                        body: `"${animeTitle}" Episode ${latestEpAvailable} is now available.`,
-                        icon: media.coverImage.extraLarge || '/favicon.svg',
-                        url: `/?openAnimeId=${mediaId}`
-                    });
-
-                    try {
-                        await webpush.sendNotification(sub.subscription, payload);
-                        console.log(`[Push Server] Sent notification for anime ${mediaId} Ep ${latestEpAvailable}`);
-                    } catch (err) {
-                        console.error(`[Push Server] Failed to send push notification:`, err.message);
-                        if (err.statusCode === 410 || err.statusCode === 404) {
-                            sub.remove = true;
-                        }
+                    // Schedule if there's an unwatched upcoming episode
+                    if (nextEpisode > watched) {
+                        scheduleNotificationForRelease(mediaId, media.nextAiringEpisode.airingAt, media, sub);
                     }
-
-                    watchItem.lastNotified = latestEpAvailable;
-                    subsUpdated = true;
                 }
             }
-        }
+            // For finished anime: check if we have unreleased episodes
+            else if (media.status === 'FINISHED') {
+                const latestEpAvailable = media.episodes || 0;
+                for (const sub of subs) {
+                    const watchItem = (sub.watchlist || []).find(w => w.id === mediaId);
+                    if (!watchItem) continue;
 
-        const validSubs = subs.filter(s => !s.remove);
-        if (validSubs.length !== subs.length || subsUpdated) {
-            saveSubscriptions(validSubs);
+                    const watched = watchItem.episode || 0;
+                    const lastNotified = watchItem.lastNotified || 0;
+
+                    if (latestEpAvailable > watched && latestEpAvailable > lastNotified) {
+                        sendPushNotification(mediaId, media, sub, scheduledNotifications, `${mediaId}-${sub.subscription.endpoint}`);
+                    }
+                }
+            }
         }
     } catch (e) {
         console.error('[Push Checker] Failed check:', e.message);
@@ -171,8 +230,11 @@ if (isPrimary && !isVercel) {
     });
 
     // Start push checker in primary process
-    setTimeout(checkServerReleases, 10000);
-    setInterval(checkServerReleases, 10 * 60 * 1000);
+    // Initial check after 5 seconds
+    setTimeout(checkServerReleases, 5000);
+    // Re-check every 5 minutes to pick up newly added anime to watchlist
+    setInterval(checkServerReleases, 5 * 60 * 1000);
+    console.log('🔔 [Push Server] Release notification scheduler started');
 } else {
     const app = express();
     const PORT = process.env.PORT || 3000;
