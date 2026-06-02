@@ -256,7 +256,9 @@ function App() {
         }
 
         const keyRes = await fetch('/api/push-public-key');
-        if (!keyRes.ok) throw new Error('Failed to fetch VAPID key');
+        if (!keyRes.ok) {
+          throw new Error('Server not running. Start backend with: cd server && npm start');
+        }
         
         const { publicKey } = await keyRes.json();
         if (!publicKey) throw new Error('No VAPID public key returned');
@@ -279,8 +281,8 @@ function App() {
         console.log('[Push] ✅ Setup complete');
         addToast('✅ Push notifications enabled!', 'success', 3000);
       } catch (err) {
-        console.error('[Push] Setup failed:', err);
-        addToast(`Failed: ${err.message}`, 'error', 4000);
+        console.error('[Push] Setup failed:', err.message);
+        addToast(`⚠️ Notifications disabled: Backend server not running`, 'warning', 5000);
       }
     };
 
