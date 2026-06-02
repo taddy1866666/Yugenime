@@ -229,110 +229,65 @@ function App() {
 
   // Service Worker and Push Notification subscription setup
   useEffect(() => {
-    // Prevent running this effect multiple times
     if (pushSetupInitiatedRef.current) return;
     pushSetupInitiatedRef.current = true;
 
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      const registerAndSubscribe = async () => {
-        try {
-          // Wait for page to fully load before registering SW to avoid impacting load performance
-          const reg = await navigator.serviceWorker.register('/sw.js');
-          console.log('[ServiceWorker] Registered successfully with scope:', reg.scope);
+    if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+      console.warn('[Push] Browser does not support Service Workers or Push API');
+      return;
+    }
 
-          // Check current notification permission
-          const currentPermission = Notification.permission;
-          
-          // Only request if not already denied
-          if (currentPermission === 'denied') {
-            console.warn('[Notification] Permission previously denied by user');
-            addToast(
-              'Push notifications are disabled. Enable them in your browser settings to get episode alerts.',
-              'info',
-              5000
-            );
-            return;
-          }
+    const registerAndSubscribe = async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        console.log('[ServiceWorker] Registered:', reg.scope);
 
-          // Request browser notification permission
+        if (Notification.permission === 'denied') {
+          console.warn('[Notification] Permission denied');
+          return;
+        }
+
+        if (Notification.permission === 'default') {
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
             console.warn('[Notification] Permission not granted:', permission);
-            if (permission === 'denied') {
-              addToast(
-                'You can enable notifications in browser settings to receive episode alerts.',
-                'warning',
-                5000
-              );
-            }
             return;
           }
-
-          // Fetch server VAPID public key
-          const keyRes = await fetch('/api/push-public-key');
-          const { publicKey } = await keyRes.json();
-          if (!publicKey) {
-            console.error('[Push] Failed to fetch VAPID public key');
-            addToast(
-              'Failed to fetch notification settings. Please refresh the page.',
-              'error',
-              4000
-            );
-            return;
-          }
-
-          const applicationServerKey = urlBase64ToUint8Array(publicKey);
-          
-          // Subscribe to push service
-          const sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey
-          });
-
-          setPushSubscription(sub);
-
-          // Register subscription in server database
-          const subRes = await fetch('/api/push-subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subscription: sub })
-          });
-
-          if (!subRes.ok) {
-            console.error('[Push] Failed to register subscription with server');
-            addToast(
-              'Failed to enable notifications. Please try refreshing the page.',
-              'error',
-              4000
-            );
-            return;
-          }
-
-          console.log('[Push] ✅ Registered and subscribed to background push notifications.');
-          addToast(
-            '✅ Push notifications enabled! You\'ll get alerts for new episodes even when the app is closed.',
-            'success',
-            4000
-          );
-        } catch (err) {
-          console.error('[Push] Setup failed:', err);
-          addToast(
-            'Failed to setup notifications. Please check browser console.',
-            'error',
-            4000
-          );
         }
-      };
 
-      // Register SW after window load event
-      if (document.readyState === 'complete') {
-        registerAndSubscribe();
-      } else {
-        window.addEventListener('load', registerAndSubscribe);
-        return () => window.removeEventListener('load', registerAndSubscribe);
+        const keyRes = await fetch('/api/push-public-key');
+        if (!keyRes.ok) throw new Error('Failed to fetch VAPID key');
+        
+        const { publicKey } = await keyRes.json();
+        if (!publicKey) throw new Error('No VAPID public key returned');
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+
+        setPushSubscription(sub);
+
+        const subRes = await fetch('/api/push-subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub })
+        });
+
+        if (!subRes.ok) throw new Error('Failed to register subscription');
+
+        console.log('[Push] ✅ Setup complete');
+        addToast('✅ Push notifications enabled!', 'success', 3000);
+      } catch (err) {
+        console.error('[Push] Setup failed:', err);
+        addToast(`Failed: ${err.message}`, 'error', 4000);
       }
+    };
+
+    if (document.readyState === 'complete') {
+      registerAndSubscribe();
     } else {
-      console.warn('[Push] Browser does not support Service Workers or Push API');
+      window.addEventListener('load', registerAndSubscribe, { once: true });
     }
   }, []);
 
