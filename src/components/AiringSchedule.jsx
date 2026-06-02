@@ -8,21 +8,29 @@ import './AiringSchedule.css';
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const fetchSchedule = async (weekOffset) => {
+  // Calculate the start of the current week (Sunday)
   const now = new Date();
-  now.setDate(now.getDate() + (weekOffset * 7));
   const currentDayIndex = now.getDay();
   
+  // Move to the week we want
+  const targetDate = new Date(now);
+  targetDate.setDate(targetDate.getDate() + (weekOffset * 7));
+  const targetDayIndex = targetDate.getDay();
+  
   // Calculate Sunday of the targeted week
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - currentDayIndex);
+  const startOfWeek = new Date(targetDate);
+  startOfWeek.setDate(targetDate.getDate() - targetDayIndex);
   startOfWeek.setHours(0, 0, 0, 0);
   
-  // Calculate Saturday of the targeted week
+  // Calculate end of Saturday (start of next Sunday)
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
+  endOfWeek.setHours(0, 0, 0, 0);
   
   const start = Math.floor(startOfWeek.getTime() / 1000);
   const end = Math.floor(endOfWeek.getTime() / 1000);
+
+  console.log(`[Schedule] Fetching for week offset ${weekOffset}, ${startOfWeek.toDateString()} to ${endOfWeek.toDateString()}`);
 
   const query = `
     query ($start: Int, $end: Int) {
@@ -50,12 +58,55 @@ const fetchSchedule = async (weekOffset) => {
     const result = await response.json();
     let airing = result.data?.Page?.airingSchedules || [];
 
-    // Fallback: If no schedules found for this exact range (API might be paginated heavily),
-    // fetch trending releasing anime instead to simulate a schedule.
-    if (airing.length === 0) {
-      const fallbackQuery = `
+    // Filter to only include anime with valid images and titles
+    airing = airing.filter(item => 
+      item.media && 
+      item.media.coverImage?.extraLarge && 
+      item.media.title?.english &&
+      item.airingAt
+    );
+
+    console.log(`[Schedule] Found ${airing.length} valid airing schedules for this week`);
+
+    if (airing.length > 0) {
+      // Grouping by day of week
+      const grouped = {};
+      DAYS.forEach(d => grouped[d] = []);
+
+      airing.forEach(item => {
+        if (!item.media) return;
+        const date = new Date(item.airingAt * 1000);
+        const dayName = DAYS[date.getDay()];
+        if (grouped[dayName]) {
+          grouped[dayName].push(item);
+        }
+      });
+
+      // Sort each day by time
+      Object.keys(grouped).forEach(day => {
+        grouped[day].sort((a, b) => a.airingAt - b.airingAt);
+      });
+
+      return grouped;
+    }
+
+    if (weekOffset === 0) {
+      console.log('[Schedule] No schedules found, trying fallback 1...');
+    }
+  } catch (error) {
+    console.warn('[Schedule] Primary query failed:', error.message);
+    if (weekOffset === 0) {
+      console.log('[Schedule] Trying fallback 1...');
+    }
+  }
+
+  // Fallback 1: Fetch trending RELEASING anime (for current week only)
+  if (weekOffset === 0) {
+    try {
+      console.log('[Schedule] Fetching fallback 1: trending RELEASING anime...');
+      const fallbackQuery1 = `
         query {
-          Page (perPage: 30) {
+          Page (perPage: 50) {
             media (status: RELEASING, sort: TRENDING_DESC, type: ANIME, isAdult: false) {
               id idMal title { english romaji } coverImage { extraLarge }
               genres description averageScore episodes status format
@@ -65,45 +116,111 @@ const fetchSchedule = async (weekOffset) => {
           }
         }
       `;
-      const fbRes = await fetch('https://graphql.anilist.co', {
+      const fbRes1 = await fetch('https://graphql.anilist.co', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: fallbackQuery })
+        body: JSON.stringify({ query: fallbackQuery1 })
       });
-      const fbData = await fbRes.json();
-      const releasing = fbData.data?.Page?.media || [];
-      airing = releasing.filter(m => m.nextAiringEpisode).map(m => ({
-        airingAt: m.nextAiringEpisode.airingAt,
-        episode: m.nextAiringEpisode.episode,
-        media: m
-      }));
+      const fbData1 = await fbRes1.json();
+      let releasing = fbData1.data?.Page?.media || [];
+      
+      releasing = releasing.filter(m => 
+        m.nextAiringEpisode && 
+        m.coverImage?.extraLarge && 
+        m.title?.english
+      );
+
+      if (releasing.length > 0) {
+        const airing = releasing.map(m => ({
+          airingAt: m.nextAiringEpisode.airingAt,
+          episode: m.nextAiringEpisode.episode,
+          media: m
+        }));
+
+        const grouped = {};
+        DAYS.forEach(d => grouped[d] = []);
+        airing.forEach(item => {
+          const date = new Date(item.airingAt * 1000);
+          const dayName = DAYS[date.getDay()];
+          if (grouped[dayName]) {
+            grouped[dayName].push(item);
+          }
+        });
+        Object.keys(grouped).forEach(day => {
+          grouped[day].sort((a, b) => a.airingAt - b.airingAt);
+        });
+
+        console.log(`[Schedule] Fallback 1 loaded ${releasing.length} results`);
+        return grouped;
+      }
+      console.log('[Schedule] Fallback 1 returned 0 results, trying fallback 2...');
+    } catch (e) {
+      console.warn('[Schedule] Fallback 1 failed:', e.message);
+      console.log('[Schedule] Trying fallback 2...');
     }
 
-    // Grouping
-    const grouped = {};
-    DAYS.forEach(d => grouped[d] = []);
+    // Fallback 2: Fetch any RELEASING anime globally
+    try {
+      console.log('[Schedule] Fetching fallback 2: all RELEASING anime...');
+      const fallbackQuery2 = `
+        query {
+          Page (perPage: 50) {
+            media (status: RELEASING, type: ANIME, isAdult: false) {
+              id idMal title { english romaji } coverImage { extraLarge }
+              genres description averageScore episodes status format
+              nextAiringEpisode { airingAt episode }
+              trailer { id site thumbnail }
+            }
+          }
+        }
+      `;
+      const fbRes2 = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: fallbackQuery2 })
+      });
+      const fbData2 = await fbRes2.json();
+      let releasing2 = fbData2.data?.Page?.media || [];
 
-    airing.forEach(item => {
-      if (!item.media) return;
-      const date = new Date(item.airingAt * 1000);
-      const dayName = DAYS[date.getDay()];
-      if (grouped[dayName]) {
-        grouped[dayName].push(item);
+      releasing2 = releasing2.filter(m => 
+        m.nextAiringEpisode && 
+        m.coverImage?.extraLarge && 
+        m.title?.english
+      );
+
+      if (releasing2.length > 0) {
+        const airing = releasing2.map(m => ({
+          airingAt: m.nextAiringEpisode.airingAt,
+          episode: m.nextAiringEpisode.episode,
+          media: m
+        }));
+
+        const grouped = {};
+        DAYS.forEach(d => grouped[d] = []);
+        airing.forEach(item => {
+          const date = new Date(item.airingAt * 1000);
+          const dayName = DAYS[date.getDay()];
+          if (grouped[dayName]) {
+            grouped[dayName].push(item);
+          }
+        });
+        Object.keys(grouped).forEach(day => {
+          grouped[day].sort((a, b) => a.airingAt - b.airingAt);
+        });
+
+        console.log(`[Schedule] Fallback 2 loaded ${releasing2.length} results`);
+        return grouped;
       }
-    });
-
-    // Sort each day by time
-    Object.keys(grouped).forEach(day => {
-      grouped[day].sort((a, b) => a.airingAt - b.airingAt);
-    });
-
-    return grouped;
-  } catch (error) {
-    console.error("Failed to fetch schedule:", error);
-    const emptyGrouped = {};
-    DAYS.forEach(d => emptyGrouped[d] = []);
-    return emptyGrouped;
+    } catch (e) {
+      console.warn('[Schedule] Fallback 2 failed:', e.message);
+    }
   }
+
+  // Return empty schedule if all attempts fail
+  console.error('[Schedule] All fetch attempts failed');
+  const emptyGrouped = {};
+  DAYS.forEach(d => emptyGrouped[d] = []);
+  return emptyGrouped;
 };
 
 
@@ -115,26 +232,40 @@ const AiringSchedule = ({ onAnimeClick }) => {
   const { data: schedule = {}, isLoading } = useQuery({
     queryKey: ['schedule', weekOffset],
     queryFn: () => fetchSchedule(weekOffset),
-    staleTime: 1000 * 60 * 30, // Keep schedule cached for 30 minutes
+    staleTime: 1000 * 60 * 5, // Keep schedule cached for 5 minutes
   });
 
   const getDayDate = (dayName) => {
     const now = new Date();
-    now.setDate(now.getDate() + (weekOffset * 7));
     const currentDayIndex = now.getDay();
     const targetDayIndex = DAYS.indexOf(dayName);
     
-    const diff = targetDayIndex - currentDayIndex;
-    const date = new Date(now);
-    date.setDate(now.getDate() + diff);
+    // Calculate the start of current week (Sunday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - currentDayIndex);
     
-    return date.getDate();
+    // Add the week offset
+    startOfWeek.setDate(startOfWeek.getDate() + (weekOffset * 7));
+    
+    // Get the date for the target day
+    const targetDate = new Date(startOfWeek);
+    targetDate.setDate(startOfWeek.getDate() + targetDayIndex);
+    
+    return targetDate.getDate();
   };
 
   const getMonthYear = () => {
     const now = new Date();
-    now.setDate(now.getDate() + (weekOffset * 7));
-    return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const currentDayIndex = now.getDay();
+    
+    // Calculate the start of current week (Sunday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - currentDayIndex);
+    
+    // Add the week offset
+    startOfWeek.setDate(startOfWeek.getDate() + (weekOffset * 7));
+    
+    return startOfWeek.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   const formatTime = (timestamp) => {

@@ -21,72 +21,209 @@ const fetchTrending = async () => {
   else if (month >= 8 && month <= 10) season = 'FALL';
   else season = 'WINTER';
 
-  const trendingQuery = `
+  // First, try to get recently started anime (airing now)
+  const recentStartedQuery = `
     query ($season: MediaSeason, $year: Int) {
-      Page (perPage: 30) {
-        media (season: $season, seasonYear: $year, sort: TRENDING_DESC, type: ANIME, isAdult: false) {
+      Page (perPage: 50) {
+        media (season: $season, seasonYear: $year, sort: TRENDING_DESC, type: ANIME, isAdult: false, status: RELEASING) {
           id idMal title { english romaji } bannerImage description
           coverImage { extraLarge } averageScore episodes status genres format
+          startDate { year month day }
           nextAiringEpisode { airingAt episode }
           trailer { id site thumbnail }
         }
       }
     }
   `;
+  
   try {
-    const trendingData = await fetchAniList(trendingQuery, { season, year });
-    console.log('[Home] Trending loaded:', trendingData?.length || 0, 'results');
-    return trendingData;
+    let trendingData = await fetchAniList(recentStartedQuery, { season, year });
+    
+    // Filter to only include anime with valid cover images
+    trendingData = trendingData.filter(m => m.coverImage?.extraLarge && m.title?.english);
+    
+    // If we got results, use them
+    if (trendingData.length > 0) {
+      console.log('[Home] Trending loaded:', trendingData?.length || 0, 'results');
+      return trendingData;
+    }
+    console.log('[Home] Primary trending query returned 0 results, trying fallback 1...');
   } catch (e) {
-    console.error('[Home] Trending fetch failed:', e);
-    return [];
+    console.warn('[Home] Primary trending query failed:', e.message);
   }
+
+  // Fallback 1: Get all anime from this season sorted by trending
+  try {
+    const fallbackQuery1 = `
+      query ($season: MediaSeason, $year: Int) {
+        Page (perPage: 50) {
+          media (season: $season, seasonYear: $year, sort: TRENDING_DESC, type: ANIME, isAdult: false) {
+            id idMal title { english romaji } bannerImage description
+            coverImage { extraLarge } averageScore episodes status genres format
+            nextAiringEpisode { airingAt episode }
+            trailer { id site thumbnail }
+          }
+        }
+      }
+    `;
+    let fallbackData1 = await fetchAniList(fallbackQuery1, { season, year });
+    fallbackData1 = fallbackData1.filter(m => m.coverImage?.extraLarge && m.title?.english);
+    
+    if (fallbackData1.length > 0) {
+      console.log('[Home] Trending loaded (fallback 1):', fallbackData1?.length || 0, 'results');
+      return fallbackData1;
+    }
+    console.log('[Home] Fallback 1 returned 0 results, trying fallback 2...');
+  } catch (e) {
+    console.warn('[Home] Fallback 1 failed:', e.message);
+  }
+
+  // Fallback 2: Get trending RELEASING anime globally (not season specific)
+  try {
+    const fallbackQuery2 = `
+      query {
+        Page (perPage: 50) {
+          media (sort: TRENDING_DESC, status: RELEASING, type: ANIME, isAdult: false) {
+            id idMal title { english romaji } bannerImage description
+            coverImage { extraLarge } averageScore episodes status genres format
+            nextAiringEpisode { airingAt episode }
+            trailer { id site thumbnail }
+          }
+        }
+      }
+    `;
+    let fallbackData2 = await fetchAniList(fallbackQuery2, {});
+    fallbackData2 = fallbackData2.filter(m => m.coverImage?.extraLarge && m.title?.english);
+    
+    if (fallbackData2.length > 0) {
+      console.log('[Home] Trending loaded (fallback 2):', fallbackData2?.length || 0, 'results');
+      return fallbackData2;
+    }
+  } catch (e) {
+    console.warn('[Home] Fallback 2 failed:', e.message);
+  }
+
+  console.error('[Home] All trending fetch attempts failed');
+  return [];
 };
 
 const fetchLatest = async () => {
   console.log('[Home] Fetching latest airing anime...');
   const now = Math.floor(Date.now() / 1000);
-  const oneWeekAgo = now - (7 * 24 * 60 * 60);
-  const buffer = now + 3600;
+  // Fetch anime that ALREADY aired in the last 24 hours (past episodes)
+  const oneDayAgo = now - (24 * 60 * 60);
 
   const latestQuery = `
     query ($start: Int, $end: Int) {
-      Page (perPage: 30) {
+      Page (perPage: 50) {
         airingSchedules (airingAt_greater: $start, airingAt_lesser: $end, sort: TIME_DESC) {
-          episode
           airingAt
+          episode
           media {
             id idMal title { english romaji } coverImage { extraLarge }
-            averageScore description bannerImage episodes status format genres
-            nextAiringEpisode { airingAt episode }
+            genres description averageScore episodes status format
             trailer { id site thumbnail }
           }
         }
       }
     }
   `;
+
   try {
-    const airingData = await fetchAniList(latestQuery, { start: oneWeekAgo, end: buffer });
-
-
-    const uniqueMap = new Map();
-    airingData.forEach(item => {
-      if (!uniqueMap.has(item.media.id)) {
-        uniqueMap.set(item.media.id, {
-          ...item.media,
-          latestEpisode: item.episode,
-          airingAt: item.airingAt
-        });
-      }
+    const response = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: latestQuery, variables: { start: oneDayAgo, end: now } })
     });
 
-    const result = Array.from(uniqueMap.values());
-    console.log('[Home] Latest loaded:', result?.length || 0, 'results');
-    return result;
+    const result = await response.json();
+    let airing = result.data?.Page?.airingSchedules || [];
+
+    // Filter to only include anime that are RELEASING (still airing) with valid images
+    airing = airing.filter(item => 
+      item.media && 
+      item.media.status === 'RELEASING' &&
+      item.media.coverImage?.extraLarge && 
+      item.media.title?.english
+    );
+
+    if (airing.length > 0) {
+      const uniqueMap = new Map();
+      airing.forEach(item => {
+        if (!uniqueMap.has(item.media.id)) {
+          uniqueMap.set(item.media.id, {
+            ...item.media,
+            latestEpisode: item.episode,
+            airingAt: item.airingAt
+          });
+        }
+      });
+
+      const finalResult = Array.from(uniqueMap.values())
+        .sort((a, b) => b.airingAt - a.airingAt);
+      
+      console.log('[Home] Latest loaded:', finalResult?.length || 0, 'results');
+      return finalResult;
+    }
+    console.log('[Home] Primary latest query returned 0 results, trying fallback...');
   } catch (e) {
-    console.error('[Home] Latest fetch failed:', e);
-    return [];
+    console.warn('[Home] Primary latest query failed:', e.message);
   }
+
+  // Fallback: Get RELEASING anime sorted by trending (most popular recently airing)
+  try {
+    const fallbackQuery = `
+      query {
+        Page (perPage: 50) {
+          media (sort: TRENDING_DESC, status: RELEASING, type: ANIME, isAdult: false) {
+            id idMal title { english romaji } coverImage { extraLarge }
+            genres description averageScore episodes status format
+            nextAiringEpisode { airingAt episode }
+            trailer { id site thumbnail }
+          }
+        }
+      }
+    `;
+
+    const fbResponse = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: fallbackQuery })
+    });
+
+    const fbResult = await fbResponse.json();
+    let fallbackData = fbResult.data?.Page?.media || [];
+
+    fallbackData = fallbackData.filter(item =>
+      item.coverImage?.extraLarge && 
+      item.title?.english &&
+      item.nextAiringEpisode
+    );
+
+    if (fallbackData.length > 0) {
+      const latestMap = new Map();
+      fallbackData.forEach(item => {
+        if (!latestMap.has(item.id)) {
+          latestMap.set(item.id, {
+            ...item,
+            latestEpisode: item.nextAiringEpisode.episode - 1,
+            airingAt: item.nextAiringEpisode.airingAt
+          });
+        }
+      });
+
+      const fallbackResult = Array.from(latestMap.values())
+        .sort((a, b) => b.airingAt - a.airingAt);
+
+      console.log('[Home] Latest loaded (fallback):', fallbackResult?.length || 0, 'results');
+      return fallbackResult;
+    }
+  } catch (e) {
+    console.warn('[Home] Latest fallback query failed:', e.message);
+  }
+
+  console.error('[Home] All latest fetch attempts failed');
+  return [];
 };
 
 const fetchAnimeById = async (animeId) => {
@@ -133,7 +270,7 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
     queryKey: ['anime', 'latest'],
     queryFn: fetchLatest,
     retry: 1,
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 60 * 1000 // 1 minute (updates frequently)
   });
 
   // Normalize Data

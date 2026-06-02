@@ -9,11 +9,17 @@ import { fetchAniList, LOCAL_API_URL } from '../utils/api';
 import './Search.css';
 
 const fetchSearchResults = async (query, genre, format) => {
-  if (!query && !genre && !format) return [];
+  // Validate and normalize query
+  const normalizedQuery = (query || '').trim();
+  
+  if (!normalizedQuery && !genre && !format) return [];
 
   // 1. Try local backend first (it has Gogoanime/HiAnime/AniPahe fallbacks)
   try {
-    const response = await fetch(`${LOCAL_API_URL}/search/${encodeURIComponent(query || ' ')}?genre=${genre || ''}&format=${format || ''}`);
+    const searchQuery = normalizedQuery || ' ';
+    const response = await fetch(
+      `${LOCAL_API_URL}/search/${encodeURIComponent(searchQuery)}?genre=${genre || ''}&format=${format || ''}`
+    );
     if (response.ok) {
       const data = await response.json();
       if (data.results && data.results.length > 0) {
@@ -25,7 +31,7 @@ const fetchSearchResults = async (query, genre, format) => {
   }
 
   // 2. Fallback to direct AniList GraphQL
-  const searchQuery = `
+  const anilistQuery = `
     query ($search: String, $genre: String, $format: MediaFormat) {
       Page (perPage: 40) {
         media (search: $search, type: ANIME, isAdult: false ${genre ? ', genre_in: [$genre]' : ''} ${format ? ', format: $format' : ''}) {
@@ -48,7 +54,7 @@ const fetchSearchResults = async (query, genre, format) => {
   `;
 
   const variables = { 
-    search: query || undefined, 
+    search: normalizedQuery || undefined, 
     genre: genre || undefined, 
     format: format || undefined 
   };
@@ -57,7 +63,7 @@ const fetchSearchResults = async (query, genre, format) => {
     const response = await fetch('https://graphql.anilist.co', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query: searchQuery, variables })
+      body: JSON.stringify({ query: anilistQuery, variables })
     });
 
     const json = await response.json();
@@ -107,7 +113,8 @@ function Search({ handleOpenAnime }) {
     setInputValue(val);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setDebouncedQuery(val.trim());
+      const trimmed = val.trim();
+      setDebouncedQuery(trimmed);
     }, 500);
   };
 
@@ -126,11 +133,22 @@ function Search({ handleOpenAnime }) {
     const bTitle = (b.title?.english || b.title?.romaji || '').toLowerCase();
     const query = debouncedQuery.toLowerCase();
 
+    // Priority 1: Exact match
+    if (aTitle === query && bTitle !== query) return -1;
+    if (aTitle !== query && bTitle === query) return 1;
+
+    // Priority 2: Starts with query
     const aStarts = aTitle.startsWith(query);
     const bStarts = bTitle.startsWith(query);
-
     if (aStarts && !bStarts) return -1;
     if (!aStarts && bStarts) return 1;
+
+    // Priority 3: Contains query
+    const aContains = aTitle.includes(query);
+    const bContains = bTitle.includes(query);
+    if (aContains && !bContains) return -1;
+    if (!aContains && bContains) return 1;
+
     return 0;
   });
 
