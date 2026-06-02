@@ -1,10 +1,17 @@
 {
-  "version": 2,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/server/index.js" }
+    { "source": "/api/:path*", "destination": "/server/index.js" }
   ],
-  "builds": [
-    { "src": "server/index.js", "use": "@vercel/node" },
-    { "src": "package.json", "use": "@vercel/static-build" }
+  "functions": {
+    "server/index.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/push-check-releases",
+      "schedule": "*/15 * * * *"
+    }
   ]
 }

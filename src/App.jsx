@@ -257,7 +257,10 @@ function App() {
 
         const keyRes = await fetch('/api/push-public-key');
         if (!keyRes.ok) {
-          throw new Error('Server not running. Start backend with: cd server && npm start');
+          const isDev = window.location.hostname === 'localhost';
+          throw new Error(isDev 
+            ? 'Server not running. Start backend with: cd server && npm start'
+            : 'Push notification service unavailable. Please try again later.');
         }
         
         const { publicKey } = await keyRes.json();
@@ -282,7 +285,11 @@ function App() {
         addToast('✅ Push notifications enabled!', 'success', 3000);
       } catch (err) {
         console.error('[Push] Setup failed:', err.message);
-        addToast(`⚠️ Notifications disabled: Backend server not running`, 'warning', 5000);
+        const isDev = window.location.hostname === 'localhost';
+        const message = isDev 
+          ? '⚠️ Notifications disabled: Backend server not running'
+          : '⚠️ Push notifications temporarily unavailable';
+        addToast(message, 'warning', 5000);
       }
     };
 

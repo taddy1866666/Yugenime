@@ -230,9 +230,7 @@ if (isPrimary && !isVercel) {
     });
 
     // Start push checker in primary process
-    // Initial check after 5 seconds
     setTimeout(checkServerReleases, 5000);
-    // Re-check every 5 minutes to pick up newly added anime to watchlist
     setInterval(checkServerReleases, 5 * 60 * 1000);
     console.log('🔔 [Push Server] Release notification scheduler started');
 } else {
@@ -457,6 +455,16 @@ if (isPrimary && !isVercel) {
             return res.json({ success: true });
         }
         res.status(404).json({ error: 'Subscription not found' });
+    });
+
+    // Manual trigger for notification check (for Vercel Cron)
+    apiRouter.get('/push-check-releases', async (req, res) => {
+        try {
+            await checkServerReleases();
+            res.json({ success: true, message: 'Release check completed' });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
     });
 
     app.use((err, req, res, next) => {
