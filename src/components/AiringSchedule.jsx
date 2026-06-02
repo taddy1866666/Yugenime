@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Calendar, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -228,6 +228,16 @@ const fetchSchedule = async (weekOffset) => {
 const AiringSchedule = ({ onAnimeClick }) => {
   const [activeDay, setActiveDay] = useState(() => DAYS[new Date().getDay()]);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update timer every minute to refresh countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000); // Update every 60 seconds (1 minute)
+
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: schedule = {}, isLoading } = useQuery({
     queryKey: ['schedule', weekOffset],
@@ -348,8 +358,8 @@ const AiringSchedule = ({ onAnimeClick }) => {
                           <Clock size={14} />
                           <span>
                             {item.broadcastTime !== 'TBA' ? item.broadcastTime : formatTime(item.airingAt) || 'TBA'}
-                            {item.airingAt > Date.now() / 1000 && (() => {
-                              const nowSec = Math.floor(Date.now() / 1000);
+                            {item.airingAt > currentTime / 1000 && (() => {
+                              const nowSec = Math.floor(currentTime / 1000);
                               const diff = item.airingAt - nowSec;
                               return (
                                 <span style={{ color: 'var(--accent)', marginLeft: '8px', fontSize: '0.75rem', opacity: 0.8 }}>
