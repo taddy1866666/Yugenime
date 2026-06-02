@@ -32,6 +32,32 @@ export const LOCAL_API_URL = '/api';
 
 const FALLBACK_API_URL = 'https://api-consumet-org-five.vercel.app/anime/gogoanime';
 
+// Whitelist of allowed external API domains
+const ALLOWED_DOMAINS = [
+  'graphql.anilist.co',
+  'api.jikan.moe',
+  'api.anify.tv',
+  'api-consumet-org-five.vercel.app'
+];
+
+const isUrlSafe = (url) => {
+  try {
+    const urlObj = new URL(url);
+    // Block private IPs and localhost
+    if (urlObj.hostname === 'localhost' || 
+        urlObj.hostname.match(/^127\./) || 
+        urlObj.hostname.match(/^10\./) || 
+        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[01])\.\./) ||
+        urlObj.hostname.match(/^192\.168\./) ||
+        urlObj.hostname === '169.254.169.254') {
+      return false;
+    }
+    return ALLOWED_DOMAINS.some(domain => urlObj.hostname.endsWith(domain));
+  } catch {
+    return false;
+  }
+};
+
 const fetchWithTimeout = async (url, options = {}, timeout = 8000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -67,7 +93,7 @@ export const consumetApi = {
       throw new Error('No results');
     } catch (e) {
       if (e.message === 'TOO_MANY_REQUESTS') {
-        alert('You are searching too fast. Please wait a moment.');
+        console.warn('Search rate limit exceeded');
         return [];
       }
       console.warn(`[API] ⚠️ Primary search failed: ${e.message}`);

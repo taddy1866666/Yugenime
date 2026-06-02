@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import { randomUUID } from 'crypto';
 import cluster from 'cluster';
 import os from 'os';
 import fs from 'fs';
@@ -240,19 +242,46 @@ if (isPrimary && !isVercel) {
     // LOGGING: Track all requests in terminal
     app.use(morgan('dev'));
 
-    // SECURITY: Relaxed Helmet for streaming (Disabled CSP to allow external video sources)
+    // SECURITY: Enhanced Helmet configuration
     app.use(helmet({
-        contentSecurityPolicy: false,
-        crossOriginEmbedderPolicy: false
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'"],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'", 'https://graphql.anilist.co', 'https://api.jikan.moe'],
+                frameSrc: ['https://www.youtube.com', 'https://vidlink.pro', 'https://vidsrc.xyz', 'https://vidsrc.me', 'https://animepahe.pw'],
+                mediaSrc: ["'self'", 'https:', 'blob:'],
+            },
+        },
+        crossOriginEmbedderPolicy: false, // Required for external video embeds
+        crossOriginResourcePolicy: { policy: 'cross-origin' }
     }));
 
-    // SECURITY: Permissive CORS for development and production
+    // SECURITY: Restrict CORS to trusted origins
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://yugenime.vercel.app',
+        process.env.FRONTEND_URL
+    ].filter(Boolean);
+
     app.use(cors({
-        origin: '*', // Temporarily allow all to rule out CORS issues
+        origin: (origin, callback) => {
+            // Allow requests with no origin (mobile apps, Postman, etc.)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ['GET', 'POST'],
         credentials: true
     }));
     
+    app.use(cookieParser());
     app.use(express.json());
 
     // RATE LIMIT: Protect API from abuse
@@ -308,6 +337,34 @@ if (isPrimary && !isVercel) {
     // API Router setup to match frontend expectations
     const apiRouter = express.Router();
     app.use('/api', apiRouter);
+
+    // CSRF Protection Middleware
+    const csrfProtection = (req, res, next) => {
+        // Skip CSRF for GET requests and cron jobs
+        if (req.method === 'GET' || req.path === '/push-check-releases') {
+            return next();
+        }
+        
+        const token = req.headers['x-csrf-token'];
+        const cookieToken = req.cookies['csrf-token'];
+        
+        if (!token || !cookieToken || token !== cookieToken) {
+            return res.status(403).json({ error: 'Invalid CSRF token' });
+        }
+        next();
+    };
+
+    // CSRF token endpoint
+    apiRouter.get('/csrf-token', (req, res) => {
+        const token = randomUUID();
+        res.cookie('csrf-token', token, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 3600000 // 1 hour
+        });
+        res.json({ csrfToken: token });
+    });
 
     app.get('/', (req, res) => res.json({ status: 'online', worker: process.pid }));
 
@@ -423,7 +480,7 @@ if (isPrimary && !isVercel) {
         res.json({ publicKey: vapidKeys.publicKey });
     });
 
-    apiRouter.post('/push-subscribe', (req, res) => {
+    apiRouter.post('/push-subscribe', csrfProtection, (req, res) => {
         const { subscription } = req.body;
         if (!subscription) return res.status(400).json({ error: 'Missing subscription' });
 
@@ -436,7 +493,7 @@ if (isPrimary && !isVercel) {
         res.json({ success: true });
     });
 
-    apiRouter.post('/push-update-watchlist', (req, res) => {
+    apiRouter.post('/push-update-watchlist', csrfProtection, (req, res) => {
         const { endpoint, watchlist } = req.body;
         if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
 

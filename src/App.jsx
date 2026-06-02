@@ -198,11 +198,26 @@ function App() {
   }, [userProgress]);
 
   const [pushSubscription, setPushSubscription] = useState(null);
+  const [csrfToken, setCsrfToken] = useState(null);
+
+  // Fetch CSRF token on mount
+  useEffect(() => {
+    const fetchCsrfToken = async () => {
+      try {
+        const res = await fetch('/api/csrf-token', { credentials: 'include' });
+        const data = await res.json();
+        setCsrfToken(data.csrfToken);
+      } catch (e) {
+        console.error('[CSRF] Failed to fetch token:', e);
+      }
+    };
+    fetchCsrfToken();
+  }, []);
 
   // Sync watchlist with server when it changes or when subscribed
   useEffect(() => {
     const syncWatchlistWithServer = async () => {
-      if (!pushSubscription) return;
+      if (!pushSubscription || !csrfToken) return;
       const watching = Object.values(userProgress)
         .filter(item => !item.status || item.status === 'watching')
         .map(item => ({
@@ -213,7 +228,11 @@ function App() {
       try {
         await fetch('/api/push-update-watchlist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          credentials: 'include',
           body: JSON.stringify({
             endpoint: pushSubscription.endpoint,
             watchlist: watching
@@ -225,11 +244,11 @@ function App() {
     };
 
     syncWatchlistWithServer();
-  }, [userProgress, pushSubscription]);
+  }, [userProgress, pushSubscription, csrfToken]);
 
   // Service Worker and Push Notification subscription setup
   useEffect(() => {
-    if (pushSetupInitiatedRef.current) return;
+    if (pushSetupInitiatedRef.current || !csrfToken) return;
     pushSetupInitiatedRef.current = true;
 
     if (!('serviceWorker' in navigator && 'PushManager' in window)) {
@@ -275,7 +294,11 @@ function App() {
 
         const subRes = await fetch('/api/push-subscribe', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          credentials: 'include',
           body: JSON.stringify({ subscription: sub })
         });
 
@@ -298,7 +321,7 @@ function App() {
     } else {
       window.addEventListener('load', registerAndSubscribe, { once: true });
     }
-  }, []);
+  }, [csrfToken]);
 
   // Check URL query parameters to open anime from background push notifications
   const location = useLocation();

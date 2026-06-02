@@ -12,12 +12,14 @@
     "@consumet/extensions": "^1.8.8",
     "axios": "^1.16.0",
     "cheerio": "^1.2.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^7.1.5",
     "got-scraping": "^4.2.1",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
+    "uuid": "^14.0.0",
     "web-push": "^3.6.7"
   }
 }

@@ -28,6 +28,12 @@ self.addEventListener('notificationclick', (event) => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       const targetUrl = event.notification.data.url;
       
+      // Validate URL to prevent open redirect
+      if (targetUrl && !targetUrl.startsWith('/') && !targetUrl.startsWith(self.location.origin)) {
+        console.error('Invalid notification URL:', targetUrl);
+        return;
+      }
+      
       // Try to find an existing window/tab and focus it
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
