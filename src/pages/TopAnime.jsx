@@ -4,6 +4,7 @@ import { Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AnimeCard from '../components/AnimeCard';
+import { SkeletonGrid } from '../components/Skeleton';
 import { fetchAniList } from '../utils/api';
 
 const fetchTopAnime = async () => {
@@ -65,9 +66,7 @@ function TopAnime({ handleOpenAnime }) {
       </div>
 
       {isLoading ? (
-        <div className="loader-container" style={{ height: '40vh' }}>
-          <div className="loader-ring"></div>
-        </div>
+        <SkeletonGrid count={10} />
       ) : (
         <div className="anime-grid">
           {topAnime.map((anime, index) => (

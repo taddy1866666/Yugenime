@@ -38,3 +38,8 @@ lint_output.txt
 design-system/
 SYSTEM_DOCUMENTATION.txt
 UI-UX-IMPROVEMENTS.md
+
+# Server push notifications
+server/vapid.json
+server/subscriptions.json
+server/subscriptions.json.backup

@@ -1,0 +1,453 @@
+/* ============================================
+   Skeleton UI — Premium Shimmer Loading States
+   ============================================ */
+
+/* Base Shimmer Animation */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Shimmer Base */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 2s ease-in-out infinite;
+}
+
+/* ========================
+   Skeleton Card Component
+   ======================== */
+.skeleton-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-card-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s ease-in-out infinite;
+}
+
+/* Badge placeholder */
+.skeleton-card-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 52px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  z-index: 2;
+}
+
+/* Card info area */
+.skeleton-card-info {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-card-title {
+  height: 16px;
+  width: 85%;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+.skeleton-card-title-short {
+  height: 14px;
+  width: 55%;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.06) 60%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.skeleton-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.skeleton-card-star {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.skeleton-card-score {
+  width: 28px;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Staggered delay for each card in a grid */
+.skeleton-card:nth-child(1) .skeleton-card-image::after { animation-delay: 0s; }
+.skeleton-card:nth-child(2) .skeleton-card-image::after { animation-delay: 0.1s; }
+.skeleton-card:nth-child(3) .skeleton-card-image::after { animation-delay: 0.2s; }
+.skeleton-card:nth-child(4) .skeleton-card-image::after { animation-delay: 0.3s; }
+.skeleton-card:nth-child(5) .skeleton-card-image::after { animation-delay: 0.4s; }
+.skeleton-card:nth-child(6) .skeleton-card-image::after { animation-delay: 0.15s; }
+.skeleton-card:nth-child(7) .skeleton-card-image::after { animation-delay: 0.25s; }
+.skeleton-card:nth-child(8) .skeleton-card-image::after { animation-delay: 0.35s; }
+.skeleton-card:nth-child(9) .skeleton-card-image::after { animation-delay: 0.45s; }
+.skeleton-card:nth-child(10) .skeleton-card-image::after { animation-delay: 0.05s; }
+
+/* ========================
+   Skeleton Hero Component
+   ======================== */
+.skeleton-hero {
+  width: 100%;
+  height: 70vh;
+  max-height: 700px;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.skeleton-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.02) 40%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.02) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 2.2s ease-in-out infinite;
+}
+
+/* Hero gradient overlay (same as real hero) */
+.skeleton-hero-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(to top, var(--bg) 0%, transparent 100%);
+  z-index: 1;
+}
+
+/* Hero content placeholders */
+.skeleton-hero-content {
+  position: absolute;
+  bottom: 15%;
+  left: 4%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-hero-badge {
+  width: 120px;
+  height: 32px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: skeletonPulse 2s ease-in-out infinite;
+}
+
+.skeleton-hero-title {
+  width: 420px;
+  max-width: 60vw;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 2s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+.skeleton-hero-title-sm {
+  width: 260px;
+  max-width: 40vw;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  animation: skeletonPulse 2s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+.skeleton-hero-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.skeleton-hero-btn {
+  width: 140px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  animation: skeletonPulse 2s ease-in-out infinite;
+}
+
+.skeleton-hero-btn:nth-child(2) {
+  width: 120px;
+  animation-delay: 0.15s;
+}
+
+/* Hero dots */
+.skeleton-hero-dots {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.skeleton-hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.skeleton-hero-dot:first-child {
+  width: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================
+   Skeleton Section Header
+   ============================ */
+.skeleton-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.skeleton-section-title {
+  width: 180px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.skeleton-section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 24px;
+  height: 3px;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.2);
+}
+
+.skeleton-section-btn {
+  width: 80px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ============================
+   Skeleton Schedule
+   ============================ */
+.skeleton-schedule-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.skeleton-schedule-tab {
+  width: 60px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-schedule-tab:first-child {
+  width: 80px;
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+/* ============================
+   Full Page Skeleton (Home)
+   ============================ */
+.skeleton-page {
+  animation: fadeIn 0.4s ease;
+}
+
+/* ============================
+   Responsive
+   ============================ */
+@media (max-width: 768px) {
+  .skeleton-hero {
+    height: 55vh;
+    min-height: 320px;
+  }
+
+  .skeleton-hero-title {
+    width: 280px;
+    height: 30px;
+  }
+
+  .skeleton-hero-title-sm {
+    width: 180px;
+    height: 22px;
+  }
+
+  .skeleton-hero-btn {
+    width: 120px;
+    height: 40px;
+  }
+
+  .skeleton-hero-btn:nth-child(2) {
+    width: 100px;
+  }
+
+  .skeleton-hero-content {
+    gap: 12px;
+    bottom: 20%;
+  }
+
+  .skeleton-section-header {
+    margin-bottom: 24px;
+  }
+
+  .skeleton-card-info {
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .skeleton-hero {
+    height: 45vh;
+    min-height: 280px;
+  }
+
+  .skeleton-hero-title {
+    width: 200px;
+    height: 26px;
+  }
+
+  .skeleton-hero-title-sm {
+    width: 140px;
+    height: 18px;
+  }
+
+  .skeleton-hero-badge {
+    width: 100px;
+    height: 28px;
+  }
+
+  .skeleton-hero-buttons {
+    gap: 8px;
+  }
+
+  .skeleton-hero-btn {
+    width: 100px;
+    height: 38px;
+  }
+
+  .skeleton-hero-btn:nth-child(2) {
+    width: 90px;
+  }
+
+  .skeleton-card-info {
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .skeleton-card-title {
+    height: 14px;
+  }
+
+  .skeleton-card-title-short {
+    height: 12px;
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer,
+  .skeleton-card-image::after,
+  .skeleton-hero::after,
+  .skeleton-card-title,
+  .skeleton-card-title-short,
+  .skeleton-hero-title {
+    animation: skeletonPulse 3s ease-in-out infinite;
+  }
+}

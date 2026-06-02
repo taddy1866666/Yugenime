@@ -17,6 +17,7 @@
     "express-rate-limit": "^7.1.5",
     "got-scraping": "^4.2.1",
     "helmet": "^8.1.0",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "web-push": "^3.6.7"
   }
 }

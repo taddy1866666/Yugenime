@@ -39,7 +39,7 @@ const Toast = ({ message, type = 'info', duration = 4000, onClose }) => {
             <Icon size={20} />
           </div>
           <div className="toast-content">
-            <p>{message}</p>
+            <div className="toast-message">{message}</div>
           </div>
           <button 
             className="toast-close"

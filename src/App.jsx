@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useToast } from './components/ToastProvider';
 import DOMPurify from 'dompurify';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +19,21 @@ import Footer from './components/Footer';
 import VideoPlayer from './components/VideoPlayer';
 
 import './App.css';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 function App() {
   const [selectedAnime, setSelectedAnime] = useState(null);
@@ -44,10 +60,238 @@ function App() {
 
   const navigate = useNavigate();
 
+  const { addToast } = useToast();
+  const [notifiedReleases, setNotifiedReleases] = useState(() => {
+    try {
+      const saved = localStorage.getItem('yugenime_notified_releases');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const notifiedReleasesRef = useRef(notifiedReleases);
+  notifiedReleasesRef.current = notifiedReleases;
+
+  const userProgressRef = useRef(userProgress);
+  userProgressRef.current = userProgress;
+
+  const handleOpenAnimeRef = useRef(null);
+
+  useEffect(() => {
+    const checkAnimeReleases = async () => {
+      const watching = Object.values(userProgressRef.current)
+        .filter(item => !item.status || item.status === 'watching');
+      
+      if (watching.length === 0) return;
+
+      const ids = watching.map(item => item.id);
+      const query = `
+        query ($ids: [Int]) {
+          Page (perPage: 50) {
+            media (id_in: $ids) {
+              id
+              title {
+                english
+                romaji
+              }
+              coverImage {
+                extraLarge
+              }
+              status
+              episodes
+              nextAiringEpisode {
+                airingAt
+                episode
+              }
+            }
+          }
+        }
+      `;
+
+      try {
+        const data = await fetchAniList(query, { ids });
+        if (!data || data.length === 0) return;
+
+        const currentNotified = { ...notifiedReleasesRef.current };
+        let updatedAny = false;
+
+        data.forEach((anime) => {
+          const animeIdStr = String(anime.id);
+          const progressItem = userProgressRef.current[animeIdStr];
+          if (!progressItem) return;
+
+          const watchedEp = progressItem.episode || 0;
+          
+          let latestEpAvailable = 0;
+          if (anime.nextAiringEpisode) {
+            latestEpAvailable = anime.nextAiringEpisode.episode - 1;
+          } else if (anime.status === 'FINISHED') {
+            latestEpAvailable = anime.episodes || 0;
+          }
+
+          if (latestEpAvailable === 0) return;
+
+          const lastNotifiedEp = currentNotified[animeIdStr];
+
+          if (lastNotifiedEp === undefined) {
+            // First check for this anime: record current release state to avoid retrospective notifications
+            currentNotified[animeIdStr] = latestEpAvailable;
+            updatedAny = true;
+          } else if (latestEpAvailable > watchedEp && latestEpAvailable > lastNotifiedEp) {
+            // A new episode has released since the last check!
+            const animeTitle = anime.title.english || anime.title.romaji;
+            
+            addToast(
+              <div 
+                style={{ display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }} 
+                onClick={() => {
+                  if (handleOpenAnimeRef.current) {
+                    handleOpenAnimeRef.current(anime);
+                  }
+                }}
+              >
+                <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.95rem' }}>New Episode Release!</span>
+                <span style={{ fontSize: '0.85rem', color: 'white', lineHeight: 1.3 }}>
+                  <strong>{animeTitle}</strong> Episode <strong>{latestEpAvailable}</strong> is now available.
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  Click to watch now
+                </span>
+              </div>,
+              'premium',
+              10000
+            );
+
+            currentNotified[animeIdStr] = latestEpAvailable;
+            updatedAny = true;
+          }
+        });
+
+        if (updatedAny) {
+          setNotifiedReleases(currentNotified);
+          localStorage.setItem('yugenime_notified_releases', JSON.stringify(currentNotified));
+        }
+      } catch (e) {
+        console.error('[ReleaseCheck] Failed to check for releases:', e);
+      }
+    };
+
+    // Run check immediately on mount/load
+    const runCheck = () => {
+      checkAnimeReleases();
+    };
+
+    const timeoutId = setTimeout(runCheck, 3000);
+
+    // Set interval for every 15 minutes
+    const intervalId = setInterval(runCheck, 15 * 60 * 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, []);
+
   // Save to localStorage whenever userProgress changes
   useEffect(() => {
     localStorage.setItem('yugenime_progress', JSON.stringify(userProgress));
   }, [userProgress]);
+
+  const [pushSubscription, setPushSubscription] = useState(null);
+
+  // Sync watchlist with server when it changes or when subscribed
+  useEffect(() => {
+    const syncWatchlistWithServer = async () => {
+      if (!pushSubscription) return;
+      const watching = Object.values(userProgress)
+        .filter(item => !item.status || item.status === 'watching')
+        .map(item => ({
+          id: item.id,
+          episode: item.episode || 0
+        }));
+
+      try {
+        await fetch('/api/push-update-watchlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            endpoint: pushSubscription.endpoint,
+            watchlist: watching
+          })
+        });
+      } catch (e) {
+        console.error('[Push] Failed to sync watchlist with server:', e);
+      }
+    };
+
+    syncWatchlistWithServer();
+  }, [userProgress, pushSubscription]);
+
+  // Service Worker and Push Notification subscription setup
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const registerAndSubscribe = async () => {
+        try {
+          // Wait for page to fully load before registering SW to avoid impacting load performance
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          console.log('[ServiceWorker] Registered successfully with scope:', reg.scope);
+
+          // Request browser notification permission
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.warn('[Notification] Permission not granted:', permission);
+            return;
+          }
+
+          // Fetch server VAPID public key
+          const keyRes = await fetch('/api/push-public-key');
+          const { publicKey } = await keyRes.json();
+          if (!publicKey) return;
+
+          const applicationServerKey = urlBase64ToUint8Array(publicKey);
+          
+          // Subscribe to push service
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey
+          });
+
+          setPushSubscription(sub);
+
+          // Register subscription in server database
+          await fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: sub })
+          });
+
+          console.log('[Push] Registered and subscribed to background push notifications.');
+        } catch (err) {
+          console.error('[Push] Setup failed:', err);
+        }
+      };
+
+      // Register SW after window load event
+      if (document.readyState === 'complete') {
+        registerAndSubscribe();
+      } else {
+        window.addEventListener('load', registerAndSubscribe);
+        return () => window.removeEventListener('load', registerAndSubscribe);
+      }
+    }
+  }, []);
+
+  // Check URL query parameters to open anime from background push notifications
+  const location = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const openAnimeId = params.get('openAnimeId');
+    if (openAnimeId) {
+      handleOpenAnimeFromProgress({ id: parseInt(openAnimeId, 10) });
+      navigate('/', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,7 +306,11 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleOpenAnime = async (anime) => {
+  useEffect(() => {
+    handleOpenAnimeRef.current = handleOpenAnime;
+  }, [handleOpenAnime]);
+
+  async function handleOpenAnime(anime) {
     // Standardize anime data for consistent rendering
     const standardizedAnime = {
       ...anime,
@@ -151,7 +399,7 @@ function App() {
     }
   }
 
-  const handleOpenAnimeFromProgress = async (progressItem) => {
+  async function handleOpenAnimeFromProgress(progressItem) {
     setIsModalLoading(true);
     const query = `
       query ($id: Int) {
@@ -543,7 +791,17 @@ function App() {
                   </div>
                   <div className="episodes-grid">
                     {isLoadingEpisodes ? (
-                      <div className="loader-ring" style={{ margin: '40px auto' }}></div>
+                      Array.from({ length: 12 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="skeleton-shimmer"
+                          style={{
+                            height: '42px',
+                            borderRadius: '8px',
+                            opacity: 0.8
+                          }}
+                        />
+                      ))
                     ) : episodes.length > 0 ? (
                       episodes.map((ep) => {
                         const epNum = ep.number || ep.mal_id;

@@ -4,6 +4,7 @@ import { Search as SearchIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AnimeCard from '../components/AnimeCard';
+import { SkeletonGrid } from '../components/Skeleton';
 import { fetchAniList, LOCAL_API_URL } from '../utils/api';
 import './Search.css';
 
@@ -202,9 +203,7 @@ function Search({ handleOpenAnime }) {
       </div>
 
       {isLoading ? (
-        <div className="loader-container" style={{ height: '40vh' }}>
-          <div className="loader-ring"></div>
-        </div>
+        <SkeletonGrid count={8} />
       ) : hasSearch && sortedResults.length > 0 ? (
         <div className="anime-grid">
           {sortedResults.map((anime) => (

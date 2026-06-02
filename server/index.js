@@ -5,12 +5,155 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import cluster from 'cluster';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
+import webpush from 'web-push';
 import { ANIME, META } from '@consumet/extensions';
 
 // Compatibility for older Node versions
 // LOAD BALANCER: Only use Cluster in Local, disable in Vercel (Serverless)
 const isPrimary = cluster.isPrimary || cluster.isMaster;
 const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
+
+const VAPID_FILE = path.join(process.cwd(), 'vapid.json');
+let vapidKeys;
+
+if (fs.existsSync(VAPID_FILE)) {
+    vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf-8'));
+} else {
+    vapidKeys = webpush.generateVAPIDKeys();
+    fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys, null, 2), 'utf-8');
+}
+
+webpush.setVapidDetails(
+    'mailto:admin@yugenime.com',
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+);
+
+const SUBS_FILE = path.join(process.cwd(), 'subscriptions.json');
+
+const loadSubscriptions = () => {
+    if (fs.existsSync(SUBS_FILE)) {
+        try {
+            return JSON.parse(fs.readFileSync(SUBS_FILE, 'utf-8'));
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+};
+
+const saveSubscriptions = (subs) => {
+    try {
+        fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), 'utf-8');
+    } catch (e) {
+        console.error('Failed to save subscriptions:', e);
+    }
+};
+
+const checkServerReleases = async () => {
+    console.log('[Push Server] Checking for new anime releases...');
+    const subs = loadSubscriptions();
+    if (subs.length === 0) return;
+
+    const allIds = new Set();
+    subs.forEach(sub => {
+        (sub.watchlist || []).forEach(item => {
+            allIds.add(item.id);
+        });
+    });
+
+    if (allIds.size === 0) return;
+
+    const idsArray = Array.from(allIds);
+    const query = `
+      query ($ids: [Int]) {
+        Page (perPage: 50) {
+          media (id_in: $ids) {
+            id
+            title {
+              english
+              romaji
+            }
+            coverImage {
+              extraLarge
+            }
+            status
+            episodes
+            nextAiringEpisode {
+              airingAt
+              episode
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+        const response = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables: { ids: idsArray } })
+        });
+        const result = await response.json();
+        const mediaList = result.data?.Page?.media || [];
+
+        if (mediaList.length === 0) return;
+
+        let subsUpdated = false;
+
+        for (const media of mediaList) {
+            const mediaId = media.id;
+            let latestEpAvailable = 0;
+            if (media.nextAiringEpisode) {
+                latestEpAvailable = media.nextAiringEpisode.episode - 1;
+            } else if (media.status === 'FINISHED') {
+                latestEpAvailable = media.episodes || 0;
+            }
+
+            if (latestEpAvailable === 0) continue;
+
+            for (const sub of subs) {
+                const watchItem = (sub.watchlist || []).find(w => w.id === mediaId);
+                if (!watchItem) continue;
+
+                const watched = watchItem.episode || 0;
+                const lastNotified = watchItem.lastNotified || 0;
+
+                if (latestEpAvailable > watched && latestEpAvailable > lastNotified) {
+                    const animeTitle = media.title.english || media.title.romaji;
+                    const payload = JSON.stringify({
+                        title: 'New Episode Release! 🎬',
+                        body: `"${animeTitle}" Episode ${latestEpAvailable} is now available.`,
+                        icon: media.coverImage.extraLarge || '/favicon.svg',
+                        url: `/?openAnimeId=${mediaId}`
+                    });
+
+                    try {
+                        await webpush.sendNotification(sub.subscription, payload);
+                        console.log(`[Push Server] Sent notification for anime ${mediaId} Ep ${latestEpAvailable}`);
+                    } catch (err) {
+                        console.error(`[Push Server] Failed to send push notification:`, err.message);
+                        if (err.statusCode === 410 || err.statusCode === 404) {
+                            sub.remove = true;
+                        }
+                    }
+
+                    watchItem.lastNotified = latestEpAvailable;
+                    subsUpdated = true;
+                }
+            }
+        }
+
+        const validSubs = subs.filter(s => !s.remove);
+        if (validSubs.length !== subs.length || subsUpdated) {
+            saveSubscriptions(validSubs);
+        }
+    } catch (e) {
+        console.error('[Push Checker] Failed check:', e.message);
+    }
+};
 
 // LOAD BALANCER: Only use Cluster in Local, disable in Vercel (Serverless)
 if (isPrimary && !isVercel) {
@@ -26,6 +169,10 @@ if (isPrimary && !isVercel) {
         console.log(`⚠️ Worker ${worker.process.pid} died. Restarting...`);
         cluster.fork();
     });
+
+    // Start push checker in primary process
+    setTimeout(checkServerReleases, 10000);
+    setInterval(checkServerReleases, 10 * 60 * 1000);
 } else {
     const app = express();
     const PORT = process.env.PORT || 3000;
@@ -210,6 +357,45 @@ if (isPrimary && !isVercel) {
         }
     });
     // ------------------------------------
+
+    // --- PUSH NOTIFICATION ENDPOINTS ---
+    apiRouter.get('/push-public-key', (req, res) => {
+        res.json({ publicKey: vapidKeys.publicKey });
+    });
+
+    apiRouter.post('/push-subscribe', (req, res) => {
+        const { subscription } = req.body;
+        if (!subscription) return res.status(400).json({ error: 'Missing subscription' });
+
+        const subs = loadSubscriptions();
+        const existingIdx = subs.findIndex(s => s.subscription.endpoint === subscription.endpoint);
+        if (existingIdx === -1) {
+            subs.push({ subscription, watchlist: [] });
+            saveSubscriptions(subs);
+        }
+        res.json({ success: true });
+    });
+
+    apiRouter.post('/push-update-watchlist', (req, res) => {
+        const { endpoint, watchlist } = req.body;
+        if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+
+        const subs = loadSubscriptions();
+        const sub = subs.find(s => s.subscription.endpoint === endpoint);
+        if (sub) {
+            sub.watchlist = (watchlist || []).map(item => {
+                const existingItem = sub.watchlist.find(w => w.id === item.id);
+                return {
+                    id: item.id,
+                    episode: item.episode || 0,
+                    lastNotified: existingItem ? (existingItem.lastNotified || 0) : (item.episode || 0)
+                };
+            });
+            saveSubscriptions(subs);
+            return res.json({ success: true });
+        }
+        res.status(404).json({ error: 'Subscription not found' });
+    });
 
     app.use((err, req, res, next) => {
         console.error(`[ERROR] ${err.message}`);

@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AnimeCard from '../components/AnimeCard';
 import { fetchAniList } from '../utils/api';
+import { SkeletonGrid } from '../components/Skeleton';
 
 const fetchGenreAnime = async (genre) => {
   const genreQuery = `
@@ -68,8 +69,8 @@ function Genre({ handleOpenAnime }) {
       </div>
 
       {isGenreLoading ? (
-        <div className="loader-container" style={{ height: '40vh' }}>
-          <div className="loader-ring"></div>
+        <div style={{ marginTop: '40px' }}>
+          <SkeletonGrid count={10} />
         </div>
       ) : (
         <div className="anime-grid" style={{ marginTop: '40px' }}>

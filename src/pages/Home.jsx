@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import Hero from '../components/Hero';
 import AnimeCard from '../components/AnimeCard';
 import AiringSchedule from '../components/AiringSchedule';
+import { SkeletonHero, SkeletonSection } from '../components/Skeleton';
 import { fetchAniList } from '../utils/api';
 
 const fetchTrending = async () => {
@@ -153,12 +154,18 @@ function Home({ userProgress, handleOpenAnime, handleOpenAnimeFromProgress }) {
 
   if (isLoading) {
     return (
-      <div className="loader-container">
-        <div className="loader-ring"></div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Initializing Yugenime...</p>
+      <div className="skeleton-page">
+        <SkeletonHero />
+        <div className="container" style={{ marginTop: '60px' }}>
+          <SkeletonSection count={isMobile ? 4 : 10} />
+          <div style={{ marginTop: '80px' }}>
+            <SkeletonSection count={isMobile ? 4 : 10} />
+          </div>
+        </div>
       </div>
     );
   }
+
 
   return (
     <motion.div

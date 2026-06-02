@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Calendar, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { SkeletonScheduleGrid } from './Skeleton';
 import './AiringSchedule.css';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -184,10 +185,7 @@ const AiringSchedule = ({ onAnimeClick }) => {
 
       <div className="schedule-content">
         {isLoading ? (
-          <div className="loader-wrapper">
-            <div className="loader-ring"></div>
-            <p style={{ color: 'var(--text-dim)', fontWeight: 500 }}>Syncing schedule...</p>
-          </div>
+          <SkeletonScheduleGrid count={6} />
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
