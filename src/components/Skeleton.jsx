@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import './Skeleton.css';
 
 /**
  * SkeletonCard — Mimics the AnimeCard shape while loading
+ * MEMOIZED: Prevents re-renders since this component has no props
  */
-export const SkeletonCard = () => (
+export const SkeletonCard = memo(() => (
   <div className="skeleton-card">
     <div className="skeleton-card-image">
       <div className="skeleton-card-badge" />
@@ -19,13 +20,14 @@ export const SkeletonCard = () => (
       </div>
     </div>
   </div>
-);
+));
 
 /**
  * SkeletonGrid — Renders a grid of SkeletonCards
+ * MEMOIZED: Only re-renders when count prop changes
  * @param {number} count - Number of skeleton cards to render
  */
-export const SkeletonGrid = ({ count = 10 }) => (
+export const SkeletonGrid = memo(({ count = 10 }) => (
   <div className="anime-grid">
     {Array.from({ length: count }).map((_, i) => (
       <motion.div
@@ -38,12 +40,13 @@ export const SkeletonGrid = ({ count = 10 }) => (
       </motion.div>
     ))}
   </div>
-);
+));
 
 /**
  * SkeletonHero — Mimics the Hero banner while loading
+ * MEMOIZED: No props, so never re-renders after initial mount
  */
-export const SkeletonHero = () => (
+export const SkeletonHero = memo(() => (
   <div className="skeleton-hero">
     <div className="skeleton-hero-gradient" />
     <div className="skeleton-hero-content">
@@ -63,12 +66,13 @@ export const SkeletonHero = () => (
       <div className="skeleton-hero-dot" />
     </div>
   </div>
-);
+));
 
 /**
  * SkeletonScheduleCard — Mimics the AiringSchedule card while loading
+ * MEMOIZED: No props, so never re-renders
  */
-export const SkeletonScheduleCard = () => (
+export const SkeletonScheduleCard = memo(() => (
   <div className="schedule-card" style={{ pointerEvents: 'none' }}>
     <div className="card-image" style={{ background: 'rgba(255,255,255,0.04)', overflow: 'hidden', position: 'relative' }}>
       <div style={{
@@ -92,13 +96,14 @@ export const SkeletonScheduleCard = () => (
       </div>
     </div>
   </div>
-);
+));
 
 /**
  * SkeletonScheduleGrid — Renders a grid of SkeletonScheduleCards
+ * MEMOIZED: Only re-renders when count prop changes
  * @param {number} count - Number of skeleton cards to render
  */
-export const SkeletonScheduleGrid = ({ count = 6 }) => (
+export const SkeletonScheduleGrid = memo(({ count = 6 }) => (
   <div className="schedule-grid">
     {Array.from({ length: count }).map((_, i) => (
       <motion.div
@@ -111,13 +116,14 @@ export const SkeletonScheduleGrid = ({ count = 6 }) => (
       </motion.div>
     ))}
   </div>
-);
+));
 
 /**
  * SkeletonSection — Full section skeleton (header + grid)
+ * MEMOIZED: Only re-renders when count prop changes
  * @param {number} count - Number of skeleton cards
  */
-export const SkeletonSection = ({ count = 10 }) => (
+export const SkeletonSection = memo(({ count = 10 }) => (
   <section>
     <div className="skeleton-section-header">
       <div className="skeleton-section-title" />
@@ -125,7 +131,7 @@ export const SkeletonSection = ({ count = 10 }) => (
     </div>
     <SkeletonGrid count={count} />
   </section>
-);
+));
 
 export default {
   SkeletonCard,

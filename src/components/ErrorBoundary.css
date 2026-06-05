@@ -1,0 +1,137 @@
+.error-boundary-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(25, 15, 35, 0.9) 100%);
+  backdrop-filter: blur(20px);
+  z-index: 9999;
+}
+
+.error-boundary-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.error-icon {
+  color: #ff6b6b;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+.error-boundary-content h1 {
+  color: white;
+  font-size: 1.8rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.error-boundary-content p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.error-details {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: left;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.error-details summary {
+  cursor: pointer;
+  color: rgba(255, 100, 100, 0.8);
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.error-details pre {
+  margin: 8px 0 0 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.error-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.error-btn.reset {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  color: white;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.error-btn.reset:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+}
+
+.error-btn.home {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.error-btn.home:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .error-boundary-content {
+    padding: 30px 20px;
+    gap: 18px;
+    max-width: 90%;
+  }
+
+  .error-boundary-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+}

@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Clock, ListTodo, CheckCircle2, MoreVertical } from 'lucide-react';
 import './AnimeCard.css';
 
+/**
+ * AnimeCard Component - MEMOIZED
+ * 
+ * Supervisor's note: "Prevent re-renders when list parent updates if this card's props haven't changed"
+ * 
+ * How memo works:
+ * - React compares old props vs new props
+ * - Only re-renders if props actually changed
+ * - Saves expensive rendering on large lists
+ */
 function AnimeCard({ title, image, rating, episode, synopsis, genres, onClick, onGenreClick, isProgress, onAddToWatchlist, currentStatus, animeData }) {
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -280,4 +290,21 @@ function AnimeCard({ title, image, rating, episode, synopsis, genres, onClick, o
   );
 }
 
-export default AnimeCard;
+/**
+ * Export with memo:
+ * - Compares old props with new props
+ * - Only re-renders if props changed
+ * - Custom comparison function: (prev, next) => comparing IDs
+ */
+export default memo(AnimeCard, (prevProps, nextProps) => {
+  // Return true if props are equal (don't re-render)
+  // Return false if props changed (re-render)
+  return (
+    prevProps.title === nextProps.title &&
+    prevProps.image === nextProps.image &&
+    prevProps.rating === nextProps.rating &&
+    prevProps.episode === nextProps.episode &&
+    prevProps.currentStatus === nextProps.currentStatus &&
+    prevProps.animeData?.id === nextProps.animeData?.id
+  );
+});

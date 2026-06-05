@@ -254,9 +254,135 @@
   flex-direction: column;
   gap: 12px;
   pointer-events: none;
+  max-height: calc(100vh - 40px);
+  max-width: 520px;
+  transition: all 0.3s ease;
 }
 
+.toast-container.collapsed {
+  max-width: 300px;
+}
+
+/* Toast List - Scrollable */
+.toast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  pointer-events: auto;
+  padding-right: 4px;
+}
+
+.toast-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.toast-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.toast-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.toast-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Notification Badge */
+.toast-notification-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(255, 51, 51, 0.2) 0%, rgba(255, 0, 0, 0.1) 100%);
+  border: 1px solid rgba(255, 51, 51, 0.3);
+  border-radius: 12px;
+  color: #ff3333;
+  font-size: 0.9rem;
+  font-weight: 600;
+  pointer-events: auto;
+  justify-content: space-between;
+  min-width: 150px;
+}
+
+.toast-notification-badge svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.toast-notification-badge span {
+  flex: 1;
+  text-align: center;
+}
+
+.toast-expand-btn {
+  background: rgba(255, 51, 51, 0.2);
+  border: 1px solid rgba(255, 51, 51, 0.4);
+  color: #ff3333;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toast-expand-btn:hover {
+  background: rgba(255, 51, 51, 0.3);
+  border-color: rgba(255, 51, 51, 0.6);
+}
+
+/* Overflow Indicator */
+.toast-overflow-indicator {
+  padding: 8px 12px;
+  background: rgba(100, 100, 100, 0.2);
+  border: 1px solid rgba(150, 150, 150, 0.3);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  text-align: center;
+  font-weight: 500;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toast-overflow-indicator:hover {
+  background: rgba(100, 100, 100, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Responsive - Mobile */
 @media (max-width: 768px) {
+  .toast-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    max-height: calc(100vh - 20px);
+  }
+
+  .toast-container.collapsed {
+    max-width: none;
+  }
+
+  .toast-list {
+    max-height: calc(100vh - 100px);
+  }
+
   .toast {
     left: 20px;
     right: 20px;
@@ -279,9 +405,40 @@
   .toast-anime-title {
     font-size: 1rem;
   }
-  
+}
+
+@media (max-width: 480px) {
   .toast-container {
-    left: 20px;
-    right: 20px;
+    top: 5px;
+    right: 5px;
+    left: 5px;
+  }
+
+  .toast-list {
+    gap: 8px;
+  }
+
+  .toast-notification-badge {
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  .toast-anime {
+    flex-direction: column;
+    max-height: 350px;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .toast-anime-image {
+    width: 100%;
+    max-width: 200px;
+    height: 120px;
+    margin: 0 auto;
+  }
+
+  .toast-anime-title {
+    font-size: 0.95rem;
   }
 }

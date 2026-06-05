@@ -1,8 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import './Modal.css';
 
+/**
+ * Modal Component - MEMOIZED
+ * 
+ * Supervisor's note: "Prevent re-renders when parent updates if modal props haven't changed"
+ * 
+ * Only re-renders when:
+ * - isOpen status changes
+ * - children content changes
+ * - callbacks change
+ */
 const Modal = ({
   isOpen,
   onClose,
@@ -130,4 +140,9 @@ const Modal = ({
   );
 };
 
-export default Modal;
+/**
+ * Export with memo:
+ * - Prevents re-renders when parent updates but Modal props stay the same
+ * - Especially important for isOpen flag
+ */
+export default memo(Modal);
